@@ -7,6 +7,9 @@ import { ModeSelector } from "@/components/ModeSelector";
 import { CrisisLayout } from "@/pages/CrisisLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { PhaseManagement } from "@/pages/PhaseManagement";
+import { JournalPage } from "@/pages/JournalPage";
+import { CommunicationsPage } from "@/pages/CommunicationsPage";
+import { ActionsBoard } from "@/pages/ActionsBoard";
 import NotFound from "./pages/NotFound";
 import { useCrisisSession } from "@/hooks/useCrisisSession";
 import { useState } from "react";
@@ -75,7 +78,7 @@ const App = () => {
                   path="/" 
                   element={
                     session ? (
-                      <Dashboard session={session} onExport={handleExport} />
+                      <Dashboard session={session} onExport={handleExport} onUpdateSession={updateSession} />
                     ) : (
                       <div>Loading...</div>
                     )
@@ -83,11 +86,23 @@ const App = () => {
                 />
                 <Route 
                   path="/journal" 
-                  element={<div className="text-center py-8">Journal - En développement</div>} 
+                  element={
+                    session ? (
+                      <JournalPage session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
                 />
                 <Route 
                   path="/actions" 
-                  element={<div className="text-center py-8">Actions - En développement</div>} 
+                  element={
+                    session ? (
+                      <ActionsBoard session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
                 />
                 <Route 
                   path="/decisions" 
@@ -95,7 +110,13 @@ const App = () => {
                 />
                 <Route 
                   path="/communications" 
-                  element={<div className="text-center py-8">Communications - En développement</div>} 
+                  element={
+                    session ? (
+                      <CommunicationsPage session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
                 />
                 <Route 
                   path="/indicators" 
