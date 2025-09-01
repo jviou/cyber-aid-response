@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ModeSelector } from "@/components/ModeSelector";
 import { AuthModal } from "@/components/AuthModal";
 import { SessionPage } from "@/pages/SessionPage";
@@ -11,6 +11,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
+/* ⬇️ AJOUT : Provider du sidebar (shadcn/ui) */
+import { SidebarProvider } from "@/components/ui/sidebar";
+
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -18,35 +21,43 @@ const App = () => {
   const [showModeSelector, setShowModeSelector] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleModeSelect = async (mode: "exercise" | "real", title: string, description: string, severity: "low" | "moderate" | "high" | "critical") => {
+  const handleModeSelect = async (
+    mode: "exercise" | "real",
+    title: string,
+    description: string,
+    severity: "low" | "moderate" | "high" | "critical"
+  ) => {
     if (!user) {
       setShowAuthModal(true);
       return;
     }
-    
-    // Create session in Supabase and redirect
+
     try {
-      const { data: sessionData, error } = await supabase.from('sessions').insert({
-        title,
-        description,
-        mode,
-        severity,
-        created_by: user.id
-      }).select().single();
-      
+      const { data: sessionData, error } = await supabase
+        .from("sessions")
+        .insert({
+          title,
+          description,
+          mode,
+          severity,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
       if (error) throw error;
-      
-      // Join as participant
-      await supabase.from('participants').insert({
+
+      await supabase.from("participants").insert({
         session_id: sessionData.id,
         user_id: user.id,
-        display_name: user.user_metadata?.display_name || user.email || 'Utilisateur',
-        role: 'Créateur'
+        display_name:
+          user.user_metadata?.display_name || user.email || "Utilisateur",
+        role: "Créateur",
       });
-      
+
       window.location.href = `/s/${sessionData.id}`;
     } catch (error) {
-      console.error('Error creating session:', error);
+      console.error("Error creating session:", error);
     }
   };
 
@@ -71,30 +82,27 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route 
-              path="/" 
-              element={
-                <ModeSelector 
-                  isOpen={true}
-                  onModeSelect={handleModeSelect}
-                />
-              } 
+        {/* ⬇️ ENVELOPPE TOUTE L’APP */}
+        <SidebarProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <ModeSelector isOpen={true} onModeSelect={handleModeSelect} />
+                }
+              />
+              <Route path="/s/:sessionId/*" element={<SessionPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+
+            <AuthModal
+              isOpen={showAuthModal}
+              onClose={() => setShowAuthModal(false)}
+              onSuccess={handleAuthSuccess}
             />
-            <Route 
-              path="/s/:sessionId/*" 
-              element={<SessionPage />} 
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          
-          <AuthModal 
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-            onSuccess={handleAuthSuccess}
-          />
-        </BrowserRouter>
+          </BrowserRouter>
+        </SidebarProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
