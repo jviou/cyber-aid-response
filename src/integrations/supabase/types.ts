@@ -14,7 +14,377 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      actions: {
+        Row: {
+          client_op_id: string | null
+          created_at: string
+          description: string | null
+          due_at: string | null
+          id: string
+          owner: string | null
+          priority: Database["public"]["Enums"]["action_priority"] | null
+          session_id: string
+          status: Database["public"]["Enums"]["action_status"] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_op_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          owner?: string | null
+          priority?: Database["public"]["Enums"]["action_priority"] | null
+          session_id: string
+          status?: Database["public"]["Enums"]["action_status"] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_op_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          owner?: string | null
+          priority?: Database["public"]["Enums"]["action_priority"] | null
+          session_id?: string
+          status?: Database["public"]["Enums"]["action_status"] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          after_data: Json | null
+          at: string
+          before_data: Json | null
+          by_user: string | null
+          entity: Database["public"]["Enums"]["audit_entity"]
+          entity_id: string
+          id: string
+          operation: Database["public"]["Enums"]["audit_operation"]
+          session_id: string
+        }
+        Insert: {
+          after_data?: Json | null
+          at?: string
+          before_data?: Json | null
+          by_user?: string | null
+          entity: Database["public"]["Enums"]["audit_entity"]
+          entity_id: string
+          id?: string
+          operation: Database["public"]["Enums"]["audit_operation"]
+          session_id: string
+        }
+        Update: {
+          after_data?: Json | null
+          at?: string
+          before_data?: Json | null
+          by_user?: string | null
+          entity?: Database["public"]["Enums"]["audit_entity"]
+          entity_id?: string
+          id?: string
+          operation?: Database["public"]["Enums"]["audit_operation"]
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communications: {
+        Row: {
+          attachments: Json | null
+          audience: string
+          author: string | null
+          client_op_id: string | null
+          id: string
+          message: string
+          sent_at: string | null
+          session_id: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          audience: string
+          author?: string | null
+          client_op_id?: string | null
+          id?: string
+          message: string
+          sent_at?: string | null
+          session_id: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          audience?: string
+          author?: string | null
+          client_op_id?: string | null
+          id?: string
+          message?: string
+          sent_at?: string | null
+          session_id?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communications_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      decisions: {
+        Row: {
+          client_op_id: string | null
+          decided_at: string
+          id: string
+          option_chosen: string
+          question: string
+          rationale: string | null
+          related_action_ids: string[] | null
+          related_journal_ids: string[] | null
+          session_id: string
+          tags: string[] | null
+          updated_at: string
+          validator: string | null
+        }
+        Insert: {
+          client_op_id?: string | null
+          decided_at?: string
+          id?: string
+          option_chosen: string
+          question: string
+          rationale?: string | null
+          related_action_ids?: string[] | null
+          related_journal_ids?: string[] | null
+          session_id: string
+          tags?: string[] | null
+          updated_at?: string
+          validator?: string | null
+        }
+        Update: {
+          client_op_id?: string | null
+          decided_at?: string
+          id?: string
+          option_chosen?: string
+          question?: string
+          rationale?: string | null
+          related_action_ids?: string[] | null
+          related_journal_ids?: string[] | null
+          session_id?: string
+          tags?: string[] | null
+          updated_at?: string
+          validator?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "decisions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_events: {
+        Row: {
+          at: string
+          attachments: Json | null
+          by_user: string | null
+          category: Database["public"]["Enums"]["journal_category"]
+          client_op_id: string | null
+          details: string | null
+          id: string
+          session_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          at?: string
+          attachments?: Json | null
+          by_user?: string | null
+          category: Database["public"]["Enums"]["journal_category"]
+          client_op_id?: string | null
+          details?: string | null
+          id?: string
+          session_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          at?: string
+          attachments?: Json | null
+          by_user?: string | null
+          category?: Database["public"]["Enums"]["journal_category"]
+          client_op_id?: string | null
+          details?: string | null
+          id?: string
+          session_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participants: {
+        Row: {
+          display_name: string
+          id: string
+          joined_at: string
+          presence: Json | null
+          role: string | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          display_name: string
+          id?: string
+          joined_at?: string
+          presence?: Json | null
+          role?: string | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          display_name?: string
+          id?: string
+          joined_at?: string
+          presence?: Json | null
+          role?: string | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          blob_key: string | null
+          client_op_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["resource_kind"]
+          mime_type: string | null
+          note: string | null
+          session_id: string
+          size_bytes: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          blob_key?: string | null
+          client_op_id?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["resource_kind"]
+          mime_type?: string | null
+          note?: string | null
+          session_id: string
+          size_bytes?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          blob_key?: string | null
+          client_op_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["resource_kind"]
+          mime_type?: string | null
+          note?: string | null
+          session_id?: string
+          size_bytes?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          mode: Database["public"]["Enums"]["session_mode"]
+          severity: Database["public"]["Enums"]["session_severity"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          mode: Database["public"]["Enums"]["session_mode"]
+          severity: Database["public"]["Enums"]["session_severity"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          mode?: Database["public"]["Enums"]["session_mode"]
+          severity?: Database["public"]["Enums"]["session_severity"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +393,24 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      action_priority: "low" | "med" | "high"
+      action_status: "todo" | "doing" | "done"
+      audit_entity: "journal" | "action" | "decision" | "comm" | "resource"
+      audit_operation: "create" | "update" | "delete"
+      journal_category:
+        | "detection"
+        | "containment"
+        | "eradication"
+        | "recovery"
+        | "communication"
+        | "decision"
+        | "legal"
+        | "incident"
+        | "action"
+        | "note"
+      resource_kind: "file" | "link"
+      session_mode: "exercise" | "real"
+      session_severity: "low" | "moderate" | "high" | "critical"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +537,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      action_priority: ["low", "med", "high"],
+      action_status: ["todo", "doing", "done"],
+      audit_entity: ["journal", "action", "decision", "comm", "resource"],
+      audit_operation: ["create", "update", "delete"],
+      journal_category: [
+        "detection",
+        "containment",
+        "eradication",
+        "recovery",
+        "communication",
+        "decision",
+        "legal",
+        "incident",
+        "action",
+        "note",
+      ],
+      resource_kind: ["file", "link"],
+      session_mode: ["exercise", "real"],
+      session_severity: ["low", "moderate", "high", "critical"],
+    },
   },
 } as const
