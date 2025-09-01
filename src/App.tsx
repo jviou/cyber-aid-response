@@ -4,69 +4,48 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ModeSelector } from "@/components/ModeSelector";
-import { AuthModal } from "@/components/AuthModal";
-import { SessionPage } from "@/pages/SessionPage";
+import { CrisisLayout } from "@/pages/CrisisLayout";
+import { Dashboard } from "@/pages/Dashboard";
+import { PhaseManagement } from "@/pages/PhaseManagement";
+import { JournalPage } from "@/pages/JournalPage";
+import { CommunicationsPage } from "@/pages/CommunicationsPage";
+import { ActionsBoard } from "@/pages/ActionsBoard";
 import NotFound from "./pages/NotFound";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useCrisisSession } from "@/hooks/useCrisisSession";
 import { useState } from "react";
-
-/* ⬇️ AJOUT : Provider du sidebar (shadcn/ui) */
-import { SidebarProvider } from "@/components/ui/sidebar";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { 
+    session, 
+    isLoading, 
+    createSession, 
+    clearSession, 
+    exportSession,
+    updateSession 
+  } = useCrisisSession();
+  
   const [showModeSelector, setShowModeSelector] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleModeSelect = async (
-    mode: "exercise" | "real",
-    title: string,
-    description: string,
-    severity: "low" | "moderate" | "high" | "critical"
-  ) => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-
-    try {
-      const { data: sessionData, error } = await supabase
-        .from("sessions")
-        .insert({
-          title,
-          description,
-          mode,
-          severity,
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await supabase.from("participants").insert({
-        session_id: sessionData.id,
-        user_id: user.id,
-        display_name:
-          user.user_metadata?.display_name || user.email || "Utilisateur",
-        role: "Créateur",
-      });
-
-      window.location.href = `/s/${sessionData.id}`;
-    } catch (error) {
-      console.error("Error creating session:", error);
-    }
+  const handleModeSelect = (mode: "exercise" | "real", title: string, description: string, severity: "low" | "moderate" | "high" | "critical") => {
+    createSession(mode, title, description, severity);
+    setShowModeSelector(false);
   };
 
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
+  const handleModeChange = () => {
+    clearSession();
     setShowModeSelector(true);
   };
 
-  if (authLoading) {
+  const handleExport = () => {
+    exportSession();
+  };
+
+  // Show mode selector if no session exists and not loading
+  const shouldShowModeSelector = !isLoading && (!session || showModeSelector);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-card">
         <div className="text-center">
@@ -82,27 +61,86 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {/* ⬇️ ENVELOPPE TOUTE L’APP */}
-        <SidebarProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <ModeSelector isOpen={true} onModeSelect={handleModeSelect} />
-                }
-              />
-              <Route path="/s/:sessionId/*" element={<SessionPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-
-            <AuthModal
-              isOpen={showAuthModal}
-              onClose={() => setShowAuthModal(false)}
-              onSuccess={handleAuthSuccess}
+        <BrowserRouter>
+          {shouldShowModeSelector ? (
+            <ModeSelector 
+              isOpen={true}
+              onModeSelect={handleModeSelect}
             />
-          </BrowserRouter>
-        </SidebarProvider>
+          ) : (
+            <CrisisLayout
+              session={session}
+              onModeChange={handleModeChange}
+              onExport={handleExport}
+            >
+              <Routes>
+                <Route 
+                  path="/" 
+                  element={
+                    session ? (
+                      <Dashboard session={session} onExport={handleExport} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  } 
+                />
+                <Route 
+                  path="/journal" 
+                  element={
+                    session ? (
+                      <JournalPage session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
+                />
+                <Route 
+                  path="/actions" 
+                  element={
+                    session ? (
+                      <ActionsBoard session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
+                />
+                <Route 
+                  path="/decisions" 
+                  element={<div className="text-center py-8">Décisions - En développement</div>} 
+                />
+                <Route 
+                  path="/communications" 
+                  element={
+                    session ? (
+                      <CommunicationsPage session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  }
+                />
+                <Route 
+                  path="/indicators" 
+                  element={<div className="text-center py-8">Indicateurs - En développement</div>} 
+                />
+                <Route 
+                  path="/resources" 
+                  element={<div className="text-center py-8">Ressources - En développement</div>} 
+                />
+                <Route 
+                  path="/phases/:phaseId" 
+                  element={
+                    session ? (
+                      <PhaseManagement session={session} onUpdateSession={updateSession} />
+                    ) : (
+                      <div>Loading...</div>
+                    )
+                  } 
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CrisisLayout>
+          )}
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
