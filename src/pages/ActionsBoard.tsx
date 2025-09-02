@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Clock, Plus, Calendar, User, Download } from "lucide-react";
+import { Clock, Plus, Calendar, User, Download, Trash2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { toast } from "sonner";
 import type { ActionItem, ActionPriority, ActionStatus } from "@/types/database";
@@ -19,6 +19,7 @@ interface ActionsBoardProps {
   actions: ActionItem[];
   onCreateAction: (actionData: Omit<ActionItem, 'id' | 'session_id' | 'created_at' | 'updated_at' | 'client_op_id'>) => Promise<void>;
   onUpdateAction: (id: string, updates: Partial<ActionItem>) => Promise<void>;
+  onDeleteAction: (id: string) => Promise<void>;
 }
 
 const priorityColors = {
@@ -33,7 +34,7 @@ const statusColumns = {
   done: { title: "Terminé", color: "bg-green-50" }
 };
 
-export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: ActionsBoardProps) {
+export function ActionsBoard({ actions, onCreateAction, onUpdateAction, onDeleteAction }: ActionsBoardProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newAction, setNewAction] = useState({
     title: "",
@@ -291,22 +292,33 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
                                     </p>
                                   )}
                                   
-                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <div className="flex items-center gap-1">
-                                      {action.owner && (
-                                        <>
-                                          <User className="w-3 h-3" />
-                                          <span>{action.owner}</span>
-                                        </>
-                                      )}
-                                    </div>
-                                    {action.due_at && (
-                                      <div className="flex items-center gap-1">
-                                        <Calendar className="w-3 h-3" />
-                                        {formatDate(action.due_at)}
-                                      </div>
-                                    )}
-                                  </div>
+                                   <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                     <div className="flex items-center gap-1">
+                                       {action.owner && (
+                                         <>
+                                           <User className="w-3 h-3" />
+                                           <span>{action.owner}</span>
+                                         </>
+                                       )}
+                                       {action.due_at && (
+                                         <div className="flex items-center gap-1 ml-2">
+                                           <Calendar className="w-3 h-3" />
+                                           {formatDate(action.due_at)}
+                                         </div>
+                                       )}
+                                     </div>
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         onDeleteAction(action.id);
+                                       }}
+                                       className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                     >
+                                       <Trash2 className="w-3 h-3" />
+                                     </Button>
+                                   </div>
                                 </CardContent>
                               </Card>
                             )}
@@ -340,6 +352,7 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
                     <TableHead>Statut</TableHead>
                     <TableHead>Échéance</TableHead>
                     <TableHead>Créé le</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -386,6 +399,16 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
                         </TableCell>
                         <TableCell>
                           {new Date(action.created_at).toLocaleDateString('fr-FR')}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDeleteAction(action.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

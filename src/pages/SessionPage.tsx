@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import { usePhases } from "@/hooks/usePhases";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthModal } from "@/components/AuthModal";
 import { SessionHeader } from "@/components/SessionHeader";
 import { CrisisSidebar } from "@/components/CrisisSidebar";
@@ -34,7 +35,8 @@ export function SessionPage() {
     joinSession,
     createAction,
     updateAction,
-    createJournalEvent
+    createJournalEvent,
+    refetch
   } = useRealtimeSession(sessionId!);
 
   const { phases, loading: phasesLoading } = usePhases(sessionId!);
@@ -155,6 +157,20 @@ export function SessionPage() {
     return updateAction(id, updates);
   };
 
+  // Handle delete action with Supabase
+  const handleDeleteAction = async (id: string) => {
+    const { error } = await supabase
+      .from('actions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+    
+    refetch();
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-card">
@@ -193,6 +209,7 @@ export function SessionPage() {
                     actions={actions}
                     onCreateAction={handleCreateAction}
                     onUpdateAction={handleUpdateAction}
+                    onDeleteAction={handleDeleteAction}
                   />
                 }
               />
@@ -218,8 +235,7 @@ export function SessionPage() {
                 path="phases/:phaseId" 
                 element={
                   <PhaseManagement 
-                    session={legacySession} 
-                    onUpdateSession={() => {}} 
+                    sessionId={sessionId} 
                   />
                 } 
               />
