@@ -155,7 +155,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
               Relevé des Informations, Décisions & Actions (RIDA)
             </h1>
             <p className="text-gray-600 mt-2 max-w-4xl">
-              Le RIDA constitue la ligne guide de suivi des informations, décisions et actions abordées pendant la crise. Il journal de gestion de crise qui permet au porteur reprendre les différents points de décision.
+              Le RIDA est un outil de gestion de projet qui permet de retrouver les différentes informations transmises lors d'une crise dans un document. Ces informations sont le point de départ de décisions à prendre en équipe, et d'actions à réaliser.
             </p>
           </div>
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
