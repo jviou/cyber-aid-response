@@ -37,7 +37,6 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
     { title: "Actions", url: "actions", icon: CheckSquare },
     { title: "Décisions", url: "decisions", icon: Gavel },
     { title: "Communications", url: "communications", icon: MessageSquare },
-    { title: "Indicateurs", url: "indicators", icon: BarChart3 },
     { title: "Ressources", url: "resources", icon: FileText },
   ];
 

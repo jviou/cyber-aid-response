@@ -1,61 +1,51 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ModeSelector } from "@/components/ModeSelector";
-import { AuthModal } from "@/components/AuthModal";
-import { SessionPage } from "@/pages/SessionPage";
-import NotFound from "./pages/NotFound";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
-
-const queryClient = new QueryClient();
+import { LocalCrisisLayout } from "@/components/LocalCrisisLayout";
+import { useCrisisSession } from "@/hooks/useCrisisSession";
+import { Button } from "@/components/ui/button";
+import { RotateCcw, Upload, Download } from "lucide-react";
+import { useRef } from "react";
+import { toast } from "sonner";
 
 const App = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [showModeSelector, setShowModeSelector] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const {
+    session,
+    isLoading,
+    createSession,
+    clearSession,
+    exportSession,
+    loadSession
+  } = useCrisisSession();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleModeSelect = async (mode: "exercise" | "real", title: string, description: string, severity: "low" | "moderate" | "high" | "critical") => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-    
-    // Create session in Supabase and redirect
-    try {
-      const { data: sessionData, error } = await supabase.from('sessions').insert({
-        title,
-        description,
-        mode,
-        severity,
-        created_by: user.id
-      }).select().single();
-      
-      if (error) throw error;
-      
-      // Join as participant
-      await supabase.from('participants').insert({
-        session_id: sessionData.id,
-        user_id: user.id,
-        display_name: user.user_metadata?.display_name || user.email || 'Utilisateur',
-        role: 'Créateur'
-      });
-      
-      window.location.href = `/s/${sessionData.id}`;
-    } catch (error) {
-      console.error('Error creating session:', error);
+  const handleModeSelect = (
+    mode: "exercise" | "real",
+    title: string,
+    description: string,
+    severity: "low" | "moderate" | "high" | "critical"
+  ) => {
+    createSession(mode, title, description, severity);
+  };
+
+  const handleReset = () => {
+    if (confirm("Êtes-vous sûr de vouloir reset la session ? Toutes les données seront perdues.")) {
+      clearSession();
+      toast.success("Session réinitialisée");
     }
   };
 
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-    setShowModeSelector(true);
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      loadSession(file);
+      toast.success("Session importée avec succès");
+    }
   };
 
-  if (authLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-card">
         <div className="text-center">
@@ -66,37 +56,71 @@ const App = () => {
     );
   }
 
-  return (
-    <QueryClientProvider client={queryClient}>
+  // Show mode selector if no session
+  if (!session) {
+    return (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route 
-              path="/" 
-              element={
-                <ModeSelector 
-                  isOpen={true}
-                  onModeSelect={handleModeSelect}
-                />
-              } 
-            />
-            <Route 
-              path="/s/:sessionId/*" 
-              element={<SessionPage />} 
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          
-          <AuthModal 
-            isOpen={showAuthModal}
-            onClose={() => setShowAuthModal(false)}
-            onSuccess={handleAuthSuccess}
+        <div className="min-h-screen bg-gradient-card">
+          <ModeSelector 
+            isOpen={true}
+            onModeSelect={handleModeSelect}
           />
-        </BrowserRouter>
+          <div className="fixed top-4 right-4 flex gap-2">
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />
+              Importer
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </div>
+        </div>
       </TooltipProvider>
-    </QueryClientProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <div className="min-h-screen">
+          {/* Session Controls */}
+          <div className="fixed top-4 right-4 z-50 flex gap-2">
+            <Button variant="outline" onClick={exportSession}>
+              <Download className="w-4 h-4 mr-2" />
+              Exporter
+            </Button>
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-2" />
+              Importer
+            </Button>
+            <Button variant="destructive" onClick={handleReset}>
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+          </div>
+
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/*" element={<LocalCrisisLayout session={session} onExport={exportSession} />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </TooltipProvider>
   );
 };
 
