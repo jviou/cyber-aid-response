@@ -2,47 +2,60 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ModeSelector } from "@/components/ModeSelector";
-import { CrisisLayout } from "@/pages/CrisisLayout";
-import { Dashboard } from "@/pages/Dashboard";
-import { PhaseManagement } from "@/pages/PhaseManagement";
+import { AuthModal } from "@/components/AuthModal";
+import { SessionPage } from "@/pages/SessionPage";
 import NotFound from "./pages/NotFound";
-import { useCrisisSession } from "@/hooks/useCrisisSession";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { 
-    session, 
-    isLoading, 
-    createSession, 
-    clearSession, 
-    exportSession,
-    updateSession 
-  } = useCrisisSession();
-  
+  const { user, loading: authLoading } = useAuth();
   const [showModeSelector, setShowModeSelector] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleModeSelect = (mode: "exercise" | "real", title: string, description: string, severity: "low" | "moderate" | "high" | "critical") => {
-    createSession(mode, title, description, severity);
-    setShowModeSelector(false);
+  const handleModeSelect = async (mode: "exercise" | "real", title: string, description: string, severity: "low" | "moderate" | "high" | "critical") => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Create session in Supabase and redirect
+    try {
+      const { data: sessionData, error } = await supabase.from('sessions').insert({
+        title,
+        description,
+        mode,
+        severity,
+        created_by: user.id
+      }).select().single();
+      
+      if (error) throw error;
+      
+      // Join as participant
+      await supabase.from('participants').insert({
+        session_id: sessionData.id,
+        user_id: user.id,
+        display_name: user.user_metadata?.display_name || user.email || 'Utilisateur',
+        role: 'Créateur'
+      });
+      
+      window.location.href = `/s/${sessionData.id}`;
+    } catch (error) {
+      console.error('Error creating session:', error);
+    }
   };
 
-  const handleModeChange = () => {
-    clearSession();
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
     setShowModeSelector(true);
   };
 
-  const handleExport = () => {
-    exportSession();
-  };
-
-  // Show mode selector if no session exists and not loading
-  const shouldShowModeSelector = !isLoading && (!session || showModeSelector);
-
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-card">
         <div className="text-center">
@@ -59,66 +72,28 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {shouldShowModeSelector ? (
-            <ModeSelector 
-              isOpen={true}
-              onModeSelect={handleModeSelect}
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                <ModeSelector 
+                  isOpen={true}
+                  onModeSelect={handleModeSelect}
+                />
+              } 
             />
-          ) : (
-            <CrisisLayout
-              session={session}
-              onModeChange={handleModeChange}
-              onExport={handleExport}
-            >
-              <Routes>
-                <Route 
-                  path="/" 
-                  element={
-                    session ? (
-                      <Dashboard session={session} onExport={handleExport} />
-                    ) : (
-                      <div>Loading...</div>
-                    )
-                  } 
-                />
-                <Route 
-                  path="/journal" 
-                  element={<div className="text-center py-8">Journal - En développement</div>} 
-                />
-                <Route 
-                  path="/actions" 
-                  element={<div className="text-center py-8">Actions - En développement</div>} 
-                />
-                <Route 
-                  path="/decisions" 
-                  element={<div className="text-center py-8">Décisions - En développement</div>} 
-                />
-                <Route 
-                  path="/communications" 
-                  element={<div className="text-center py-8">Communications - En développement</div>} 
-                />
-                <Route 
-                  path="/indicators" 
-                  element={<div className="text-center py-8">Indicateurs - En développement</div>} 
-                />
-                <Route 
-                  path="/resources" 
-                  element={<div className="text-center py-8">Ressources - En développement</div>} 
-                />
-                <Route 
-                  path="/phases/:phaseId" 
-                  element={
-                    session ? (
-                      <PhaseManagement session={session} onUpdateSession={updateSession} />
-                    ) : (
-                      <div>Loading...</div>
-                    )
-                  } 
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </CrisisLayout>
-          )}
+            <Route 
+              path="/s/:sessionId/*" 
+              element={<SessionPage />} 
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          
+          <AuthModal 
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            onSuccess={handleAuthSuccess}
+          />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

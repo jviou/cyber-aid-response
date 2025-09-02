@@ -1,34 +1,38 @@
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { 
-  CheckCircle, 
-  Clock, 
-  User, 
-  Calendar,
-  AlertTriangle,
-  Target,
-  Settings
-} from "lucide-react";
-import { CrisisSession, ChecklistItem, TaskStatus } from "@/types/crisis";
-import { useState } from "react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import { usePhases } from "@/hooks/usePhases";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PhaseManagementProps {
-  session: CrisisSession;
-  onUpdateSession: (updater: (session: CrisisSession) => CrisisSession) => void;
+  sessionId: string;
 }
 
-export function PhaseManagement({ session, onUpdateSession }: PhaseManagementProps) {
+export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   const { phaseId } = useParams<{ phaseId: string }>();
+  const { phases, loading, error, updateChecklistItem } = usePhases(sessionId);
+  
   const phaseIndex = phaseId ? parseInt(phaseId) - 1 : 0;
-  const phase = session.phases[phaseIndex];
+  const phase = phases[phaseIndex];
 
-  const [notes, setNotes] = useState(phase?.notes || "");
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground">Chargement de la phase...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <AlertTriangle className="w-12 h-12 text-warning mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Erreur</h2>
+        <p className="text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
 
   if (!phase) {
     return (
@@ -40,222 +44,168 @@ export function PhaseManagement({ session, onUpdateSession }: PhaseManagementPro
     );
   }
 
-  const updateChecklistItem = (
-    type: 'strategic' | 'operational',
-    itemId: string,
-    updates: Partial<ChecklistItem>
-  ) => {
-    onUpdateSession((session) => {
-      const updatedSession = { ...session };
-      const phaseToUpdate = updatedSession.phases[phaseIndex];
-      
-      phaseToUpdate.checklist[type] = phaseToUpdate.checklist[type].map(item =>
-        item.id === itemId ? { ...item, ...updates } : item
-      );
 
-      return updatedSession;
-    });
+  const allPhases = phases.map((p, index) => ({
+    ...p,
+    isActive: p.order_index === phase.order_index,
+    isCompleted: p.order_index < phase.order_index
+  }));
+
+  const getPhaseProgress = (phaseData: any) => {
+    const totalItems = phaseData.strategic_checklist.length + phaseData.operational_checklist.length;
+    const completedItems = phaseData.strategic_checklist.filter((item: any) => item.completed).length + 
+                          phaseData.operational_checklist.filter((item: any) => item.completed).length;
+    return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
-
-  const updateNotes = () => {
-    onUpdateSession((session) => {
-      const updatedSession = { ...session };
-      updatedSession.phases[phaseIndex].notes = notes;
-      return updatedSession;
-    });
-  };
-
-  const getStatusBadge = (status: TaskStatus) => {
-    const variants = {
-      todo: { variant: "outline" as const, icon: Clock, label: "À faire" },
-      doing: { variant: "default" as const, icon: Target, label: "En cours" },
-      done: { variant: "secondary" as const, icon: CheckCircle, label: "Terminé", className: "bg-success text-success-foreground" },
-      "n/a": { variant: "secondary" as const, icon: AlertTriangle, label: "N/A" }
-    };
-    return variants[status];
-  };
-
-  const calculateProgress = (checklist: ChecklistItem[]) => {
-    if (checklist.length === 0) return 0;
-    const completed = checklist.filter(item => item.status === "done").length;
-    return (completed / checklist.length) * 100;
-  };
-
-  const strategicProgress = calculateProgress(phase.checklist.strategic);
-  const operationalProgress = calculateProgress(phase.checklist.operational);
-  const totalItems = phase.checklist.strategic.length + phase.checklist.operational.length;
-  const completedItems = phase.checklist.strategic.filter(item => item.status === "done").length + 
-                        phase.checklist.operational.filter(item => item.status === "done").length;
-  const overallProgress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-
-  const renderChecklist = (items: ChecklistItem[], type: 'strategic' | 'operational', title: string) => (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              {title}
-            </CardTitle>
-            <CardDescription>
-              {items.filter(item => item.status === "done").length} / {items.length} terminées
-            </CardDescription>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-primary">
-              {type === 'strategic' ? strategicProgress.toFixed(0) : operationalProgress.toFixed(0)}%
-            </div>
-            <Progress 
-              value={type === 'strategic' ? strategicProgress : operationalProgress} 
-              className="w-24 mt-1" 
-            />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {items.map((item) => {
-          const statusConfig = getStatusBadge(item.status);
-          const StatusIcon = statusConfig.icon;
-
-          return (
-            <div key={item.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-              <Checkbox
-                checked={item.status === "done"}
-                onCheckedChange={(checked) => 
-                  updateChecklistItem(type, item.id, { 
-                    status: checked ? "done" : "todo" 
-                  })
-                }
-                className="mt-1"
-              />
-              
-              <div className="flex-1 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <p className={`font-medium ${item.status === "done" ? "line-through text-muted-foreground" : ""}`}>
-                    {item.text}
-                  </p>
-                  <Badge 
-                    variant={statusConfig.variant}
-                    className={`flex items-center gap-1 ${'className' in statusConfig ? statusConfig.className : ""}`}
-                  >
-                    <StatusIcon className="w-3 h-3" />
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Responsable</label>
-                    <Input
-                      value={item.owner || ""}
-                      onChange={(e) => updateChecklistItem(type, item.id, { owner: e.target.value })}
-                      placeholder="Assigner à..."
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Échéance</label>
-                    <Input
-                      type="datetime-local"
-                      value={item.dueAt || ""}
-                      onChange={(e) => updateChecklistItem(type, item.id, { dueAt: e.target.value })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-
-                {item.owner && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <User className="w-3 h-3" />
-                    {item.owner}
-                    {item.dueAt && (
-                      <>
-                        <Calendar className="w-3 h-3 ml-2" />
-                        {new Date(item.dueAt).toLocaleString('fr-FR')}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {items.length === 0 && (
-          <p className="text-center text-muted-foreground py-4">
-            Aucune tâche dans cette catégorie
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="space-y-6">
-      {/* Phase Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <div className={`w-6 h-6 rounded-full bg-phase-${phaseIndex + 1}`} />
-            {phase.title}
-          </h1>
-          {phase.subtitle && (
-            <p className="text-xl text-muted-foreground mt-1">{phase.subtitle}</p>
-          )}
-        </div>
+      {/* Phase Header with Blue Background */}
+      <div className="bg-blue-600 text-white p-6 rounded-lg">
+        <h1 className="text-4xl font-bold mb-4">PHASE {phase.order_index}</h1>
         
-        <div className="text-right">
-          <div className="text-3xl font-bold text-primary">
-            {overallProgress.toFixed(0)}%
+        {/* Phase Flow Diagram */}
+        <div className="mb-6">
+          <div className="text-center mb-4">
+            <h2 className="text-lg font-semibold">GESTION MÉTIER</h2>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {completedItems} / {totalItems} tâches
-          </p>
+          
+          {/* Phase Flow */}
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="bg-gray-300 text-gray-600 px-4 py-2 rounded-lg text-sm font-bold">
+              INCIDENT
+            </div>
+            <ArrowRight className="text-white" size={20} />
+            
+            {allPhases.map((p, index) => (
+              <div key={p.id} className="flex items-center">
+                <div className={`px-6 py-3 text-sm font-bold transform skew-x-[-20deg] ${
+                  p.isActive ? 'bg-blue-800 text-white' : 
+                  p.isCompleted ? 'bg-blue-400 text-white' : 
+                  'bg-gray-300 text-gray-600'
+                }`}>
+                  <span className="transform skew-x-[20deg] block">PHASE {p.order_index}</span>
+                </div>
+                {index < allPhases.length - 1 && <ArrowRight className="text-white mx-1" size={16} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Phase Descriptions */}
+          <div className="flex justify-center gap-8 text-sm">
+            <div className="text-center">
+              <div className="text-gray-200">Mobiliser</div>
+              <div className="font-semibold">Alerter et</div>
+              <div className="font-semibold">endiguer</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-200">Maintenir</div>
+              <div className="text-gray-200">la confiance</div>
+              <div className="font-semibold">Comprendre</div>
+              <div className="font-semibold">l'attaque</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-200">Relancer</div>
+              <div className="text-gray-200">les activités</div>
+              <div className="font-semibold">Durcir</div>
+              <div className="font-semibold">et surveiller</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-200">Tirer les leçons</div>
+              <div className="text-gray-200">de la crise</div>
+              <div className="font-semibold">Capitaliser</div>
+            </div>
+          </div>
+
+          <div className="text-center mt-4">
+            <div className="text-lg font-semibold">GESTION CYBER</div>
+          </div>
         </div>
       </div>
 
-      {/* Progress Overview */}
+      {/* Checklist Section */}
+      <div className="bg-blue-600 text-white rounded-lg overflow-hidden">
+        <div className="bg-blue-700 p-4">
+          <h2 className="text-2xl font-bold text-center">GESTION STRATÉGIQUE ET OPÉRATIONNELLE</h2>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-0">
+          {/* Strategic Management */}
+          <div className="bg-gray-200 text-gray-800">
+            <div className="bg-blue-600 text-white p-4">
+              <h3 className="text-xl font-bold text-center">GESTION STRATÉGIQUE</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {phase.strategic_checklist.map((item: any) => (
+                <div key={item.id} className="flex items-center gap-3">
+                  <span className="text-lg">-</span>
+                  <span className="flex-1 text-lg">{item.text}</span>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`strategic-${item.id}`}
+                      checked={item.completed}
+                      onCheckedChange={(checked) => 
+                        updateChecklistItem(phase.id, 'strategic', item.id, checked as boolean)
+                      }
+                      className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                    />
+                    <label 
+                      htmlFor={`strategic-${item.id}`}
+                      className="bg-white border border-gray-400 px-3 py-1 text-sm font-bold cursor-pointer"
+                    >
+                      OK
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Operational Management */}
+          <div className="bg-gray-200 text-gray-800">
+            <div className="bg-blue-600 text-white p-4">
+              <h3 className="text-xl font-bold text-center">GESTION OPÉRATIONNELLE</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {phase.operational_checklist.map((item: any) => (
+                <div key={item.id} className="flex items-center gap-3">
+                  <span className="text-lg">-</span>
+                  <span className="flex-1 text-lg">{item.text}</span>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`operational-${item.id}`}
+                      checked={item.completed}
+                      onCheckedChange={(checked) => 
+                        updateChecklistItem(phase.id, 'operational', item.id, checked as boolean)
+                      }
+                      className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                    />
+                    <label 
+                      htmlFor={`operational-${item.id}`}
+                      className="bg-white border border-gray-400 px-3 py-1 text-sm font-bold cursor-pointer"
+                    >
+                      OK
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress Card */}
       <Card>
         <CardHeader>
           <CardTitle>Progression de la phase</CardTitle>
         </CardHeader>
         <CardContent>
-          <Progress value={overallProgress} className="h-3" />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-            <span>Stratégique: {strategicProgress.toFixed(0)}%</span>
-            <span>Opérationnel: {operationalProgress.toFixed(0)}%</span>
+          <div className="space-y-4">
+            <Progress value={getPhaseProgress(phase)} className="h-3" />
+            <div className="text-sm text-muted-foreground">
+              {Math.round(getPhaseProgress(phase))}% complété
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Checklists */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {renderChecklist(phase.checklist.strategic, 'strategic', 'Gestion Stratégique')}
-        {renderChecklist(phase.checklist.operational, 'operational', 'Gestion Opérationnelle')}
-      </div>
-
-      {/* Notes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notes et constats</CardTitle>
-          <CardDescription>
-            Observations et commentaires pour cette phase
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ajoutez vos notes, observations et constats pour cette phase..."
-            rows={4}
-          />
-          <Button 
-            onClick={updateNotes}
-            className="mt-2"
-            variant="outline"
-          >
-            Sauvegarder les notes
-          </Button>
         </CardContent>
       </Card>
     </div>

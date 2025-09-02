@@ -32,20 +32,20 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
   const location = useLocation();
 
   const mainNavItems = [
-    { title: "Accueil", url: "/", icon: Home },
-    { title: "Journal", url: "/journal", icon: ScrollText },
-    { title: "Actions", url: "/actions", icon: CheckSquare },
-    { title: "Décisions", url: "/decisions", icon: Gavel },
-    { title: "Communications", url: "/communications", icon: MessageSquare },
-    { title: "Indicateurs", url: "/indicators", icon: BarChart3 },
-    { title: "Ressources", url: "/resources", icon: FileText },
+    { title: "Accueil", url: "dashboard", icon: Home },
+    { title: "Journal", url: "journal", icon: ScrollText },
+    { title: "Actions", url: "actions", icon: CheckSquare },
+    { title: "Décisions", url: "decisions", icon: Gavel },
+    { title: "Communications", url: "communications", icon: MessageSquare },
+    { title: "Indicateurs", url: "indicators", icon: BarChart3 },
+    { title: "Ressources", url: "resources", icon: FileText },
   ];
 
   const phaseItems = [
-    { title: "Phase 1", url: "/phases/1", subtitle: "Mobiliser", color: "phase-1" },
-    { title: "Phase 2", url: "/phases/2", subtitle: "Confiance", color: "phase-2" },
-    { title: "Phase 3", url: "/phases/3", subtitle: "Relancer", color: "phase-3" },
-    { title: "Phase 4", url: "/phases/4", subtitle: "Capitaliser", color: "phase-4" },
+    { title: "Phase 1", url: "phases/1", subtitle: "Mobiliser", color: "phase-1" },
+    { title: "Phase 2", url: "phases/2", subtitle: "Confiance", color: "phase-2" },
+    { title: "Phase 3", url: "phases/3", subtitle: "Relancer", color: "phase-3" },
+    { title: "Phase 4", url: "phases/4", subtitle: "Capitaliser", color: "phase-4" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -89,11 +89,11 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/"}
-                      className={({ isActive }) => getNavClassName(isActive)}
-                    >
+                     <NavLink
+                       to={item.url}
+                       end={item.url === "dashboard"}
+                       className={({ isActive }) => getNavClassName(isActive)}
+                     >
                       <item.icon className="w-4 h-4" />
                       {(!state || state === "expanded") && <span>{item.title}</span>}
                     </NavLink>
