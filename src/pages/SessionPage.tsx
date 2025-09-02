@@ -5,6 +5,7 @@ import { useRealtimeSession } from "@/hooks/useRealtimeSession";
 import { AuthModal } from "@/components/AuthModal";
 import { SessionHeader } from "@/components/SessionHeader";
 import { CrisisSidebar } from "@/components/CrisisSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Dashboard } from "./Dashboard";
 import { JournalPage } from "./JournalPage";
 import { ActionsBoard } from "./ActionsBoard";
@@ -137,80 +138,80 @@ export function SessionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-card">
-      <SessionHeader 
-        session={session} 
-        participants={participants}
-      />
-      
-      <div className="flex">
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gradient-card">
         <CrisisSidebar sessionMode={session.mode} />
-        
-        <main className="flex-1 p-6">
-          <Routes>
-            <Route path="/" element={<Navigate to="dashboard" replace />} />
-            <Route 
-              path="dashboard" 
-              element={
-                <Dashboard 
-                  session={legacySession} 
-                  onExport={() => {}} 
-                  onUpdateSession={() => {}} 
-                />
-              } 
-            />
-            <Route 
-              path="journal" 
-              element={
-                <JournalPage 
-                  session={legacySession} 
-                  onUpdateSession={() => {}} 
-                />
-              }
-            />
-            <Route 
-              path="actions" 
-              element={
-                <ActionsBoard 
-                  session={legacySession} 
-                  onUpdateSession={() => {}} 
-                />
-              }
-            />
-            <Route 
-              path="communications" 
-              element={
-                <CommunicationsPage 
-                  session={legacySession} 
-                  onUpdateSession={() => {}} 
-                />
-              }
-            />
-            <Route 
-              path="phases/:phaseId" 
-              element={
-                <PhaseManagement 
-                  session={legacySession} 
-                  onUpdateSession={() => {}} 
-                />
-              } 
-            />
-            <Route 
-              path="decisions" 
-              element={<div className="text-center py-8">Décisions - En développement</div>} 
-            />
-            <Route 
-              path="indicators" 
-              element={<div className="text-center py-8">Indicateurs - En développement</div>} 
-            />
-            <Route 
-              path="resources" 
-              element={<div className="text-center py-8">Ressources - En développement</div>} 
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
+        <div className="flex-1 flex flex-col">
+          <SessionHeader 
+            session={session} 
+            participants={participants}
+          />
+          <main className="flex-1 p-6 overflow-auto">
+            <Routes>
+              <Route path="/" element={<Navigate to="dashboard" replace />} />
+              <Route 
+                path="dashboard" 
+                element={
+                  <Dashboard 
+                    session={legacySession} 
+                    onExport={() => {}} 
+                    onUpdateSession={() => {}} 
+                  />
+                } 
+              />
+              <Route 
+                path="journal" 
+                element={
+                  <JournalPage 
+                    session={legacySession} 
+                    onUpdateSession={() => {}} 
+                  />
+                }
+              />
+              <Route 
+                path="actions" 
+                element={
+                  <ActionsBoard 
+                    session={legacySession} 
+                    onUpdateSession={() => {}} 
+                  />
+                }
+              />
+              <Route 
+                path="communications" 
+                element={
+                  <CommunicationsPage 
+                    session={legacySession} 
+                    onUpdateSession={() => {}} 
+                  />
+                }
+              />
+              <Route 
+                path="phases/:phaseId" 
+                element={
+                  <PhaseManagement 
+                    session={legacySession} 
+                    onUpdateSession={() => {}} 
+                  />
+                } 
+              />
+              <Route 
+                path="decisions" 
+                element={<div className="text-center py-8">Décisions - En développement</div>} 
+              />
+              <Route 
+                path="indicators" 
+                element={<div className="text-center py-8">Indicateurs - En développement</div>} 
+              />
+              <Route 
+                path="resources" 
+                element={<div className="text-center py-8">Ressources - En développement</div>} 
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
