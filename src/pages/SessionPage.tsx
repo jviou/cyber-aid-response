@@ -147,7 +147,7 @@ export function SessionPage() {
 
   // Handle create action with Supabase
   const handleCreateAction = async (actionData: any) => {
-    return createAction(actionData);
+    await createAction(actionData);
   };
 
   // Handle update action with Supabase

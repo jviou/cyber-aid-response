@@ -23,7 +23,7 @@ export function usePhases(sessionId: string) {
 
       try {
         setLoading(true);
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('phases')
           .select('*')
           .eq('session_id', sessionId)
@@ -35,7 +35,7 @@ export function usePhases(sessionId: string) {
           return;
         }
 
-        setPhases(data || []);
+        setPhases((data as any as Phase[]) || []);
       } catch (err) {
         console.error('Error fetching phases:', err);
         setError('Erreur lors du chargement des phases');

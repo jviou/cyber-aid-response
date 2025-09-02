@@ -45,10 +45,11 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
   });
 
   const actionsByStatus = useMemo(() => {
+    const source = actions ?? [];
     const grouped = {
-      todo: actions.filter(a => a.status === "todo"),
-      doing: actions.filter(a => a.status === "doing"),
-      done: actions.filter(a => a.status === "done")
+      todo: source.filter(a => a.status === "todo"),
+      doing: source.filter(a => a.status === "doing"),
+      done: source.filter(a => a.status === "done")
     };
     return grouped;
   }, [actions]);
@@ -106,7 +107,7 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
 
   const exportCSV = () => {
     const headers = ["Titre", "Description", "Propriétaire", "Priorité", "Statut", "Échéance", "Créé le"];
-    const csvData = actions.map(action => [
+    const csvData = (actions ?? []).map(action => [
       action.title,
       action.description || "",
       action.owner || "",
@@ -342,7 +343,7 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {actions
+                  {(actions ?? [])
                     .sort((a, b) => {
                       const priorityOrder = { high: 3, med: 2, low: 1 };
                       return (priorityOrder[b.priority || 'low'] - priorityOrder[a.priority || 'low']) || 
@@ -391,7 +392,7 @@ export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: Action
                 </TableBody>
               </Table>
               
-              {actions.length === 0 && (
+              {(actions ?? []).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   Aucune action créée pour l'instant
                 </div>
