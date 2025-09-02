@@ -3,10 +3,11 @@ import { supabase } from './supabase';
 export interface ResourceFile {
   id: string;
   session_id: string;
-  name: string;
-  path: string;
-  size: number | null;
-  uploaded_at: string;
+  title: string;
+  blob_key?: string;
+  size_bytes: number | null;
+  added_at: string;
+  mime_type?: string;
 }
 
 export async function uploadFile(file: File, sessionId: string): Promise<ResourceFile> {
@@ -31,9 +32,11 @@ export async function uploadFile(file: File, sessionId: string): Promise<Resourc
       .from('resources')
       .insert({
         session_id: sessionId,
-        name: file.name,
-        path: filePath,
-        size: file.size
+        kind: 'file',
+        title: file.name,
+        blob_key: filePath,
+        mime_type: file.type,
+        size_bytes: file.size
       })
       .select()
       .single();
@@ -57,7 +60,7 @@ export async function listFiles(sessionId: string): Promise<ResourceFile[]> {
       .from('resources')
       .select('*')
       .eq('session_id', sessionId)
-      .order('uploaded_at', { ascending: false });
+      .order('added_at', { ascending: false });
 
     if (error) {
       throw error;
@@ -75,7 +78,7 @@ export async function deleteFile(id: string): Promise<void> {
     // Get file path first
     const { data: resource, error: selectError } = await supabase
       .from('resources')
-      .select('path')
+      .select('blob_key')
       .eq('id', id)
       .single();
 
@@ -86,7 +89,7 @@ export async function deleteFile(id: string): Promise<void> {
     // Delete from storage
     const { error: storageError } = await supabase.storage
       .from('resources')
-      .remove([resource.path]);
+      .remove([resource.blob_key]);
 
     if (storageError) {
       console.warn('Error deleting from storage:', storageError);
@@ -107,10 +110,10 @@ export async function deleteFile(id: string): Promise<void> {
   }
 }
 
-export function getFileUrl(path: string): string {
+export function getFileUrl(blobKey: string): string {
   const { data } = supabase.storage
     .from('resources')
-    .getPublicUrl(path);
+    .getPublicUrl(blobKey);
   
   return data.publicUrl;
 }

@@ -102,10 +102,10 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
 
   const handleDownload = async (resource: ResourceFile) => {
     try {
-      const url = getFileUrl(resource.path);
+      const url = getFileUrl(resource.blob_key || '');
       const a = document.createElement('a');
       a.href = url;
-      a.download = resource.name;
+      a.download = resource.title;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -275,7 +275,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatFileSize(resources.reduce((acc, r) => acc + (r.size || 0), 0))}
+              {formatFileSize(resources.reduce((acc, r) => acc + (r.size_bytes || 0), 0))}
             </div>
           </CardContent>
         </Card>
@@ -297,11 +297,11 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <FileText className="w-8 h-8 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{resource.name}</h4>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                        <span>{formatFileSize(resource.size)}</span>
-                        <span>{formatDate(resource.uploaded_at)}</span>
-                      </div>
+                      <h4 className="font-medium truncate">{resource.title}</h4>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                      <span>{formatFileSize(resource.size_bytes)}</span>
+                      <span>{formatDate(resource.added_at)}</span>
+                    </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
