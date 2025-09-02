@@ -1,4 +1,4 @@
-import { Phase, JournalEvent, ActionItem, Communication } from "@/types/crisis";
+import { Phase } from "@/types/crisis";
 
 // Pre-filled crisis phases based on PowerPoint content
 export const defaultPhases: Phase[] = [
@@ -175,102 +175,16 @@ export const defaultPhases: Phase[] = [
   }
 ];
 
-// Seed data for real mode
-export const seedJournalEvents: JournalEvent[] = [
-  {
-    id: "journal-seed-1",
-    category: "detection",
-    title: "Incident détecté",
-    details: "Signalement initial (SOC/helpdesk)",
-    by: "Système",
-    at: new Date(Date.now() - 60000 * 30).toISOString() // 30 min ago
-  },
-  {
-    id: "journal-seed-2", 
-    category: "communication",
-    title: "Alerte cellule de crise",
-    details: "Activation de la cellule, convocation des membres",
-    by: "Incident Manager",
-    at: new Date(Date.now() - 60000 * 25).toISOString() // 25 min ago
-  },
-  {
-    id: "journal-seed-3",
-    category: "action", 
-    title: "Isolation machine impactée",
-    details: "VLAN quarantaine appliqué",
-    by: "IT Ops",
-    at: new Date(Date.now() - 60000 * 20).toISOString() // 20 min ago
-  },
-  {
-    id: "journal-seed-4",
-    category: "decision",
-    title: "Geler les transferts",
-    details: "Blocage des flux sortants non essentiels 24h",
-    by: "Direction",
-    at: new Date(Date.now() - 60000 * 15).toISOString() // 15 min ago
-  },
-  {
-    id: "journal-seed-5",
-    category: "legal",
-    title: "Pré-analyse RGPD", 
-    details: "Données perso potentiellement impactées : à confirmer sous 24-48h",
-    by: "DPO",
-    at: new Date(Date.now() - 60000 * 10).toISOString() // 10 min ago
-  },
-  {
-    id: "journal-seed-6",
-    category: "communication",
-    title: "Message interne",
-    details: "Premier flash info aux collaborateurs", 
-    by: "Com Interne",
-    at: new Date(Date.now() - 60000 * 5).toISOString() // 5 min ago
-  }
-];
-
-export const seedActions: ActionItem[] = [
-  {
-    id: "action-seed-1",
-    title: "Isolation des systèmes compromis",
-    description: "Isoler physiquement et logiquement les machines infectées",
-    owner: "IT Ops",
-    priority: "high",
-    status: "doing",
-    dueAt: new Date(Date.now() + 60000 * 60).toISOString(), // 1h from now
-    createdAt: new Date(Date.now() - 60000 * 20).toISOString()
-  },
-  {
-    id: "action-seed-2", 
-    title: "Collecte des logs système",
-    description: "Récupération des logs pour analyse forensique",
-    owner: "RSSI",
-    priority: "high",
-    status: "todo",
-    dueAt: new Date(Date.now() + 60000 * 30).toISOString(), // 30min from now
-    createdAt: new Date(Date.now() - 60000 * 15).toISOString()
-  },
-  {
-    id: "action-seed-3",
-    title: "Préparation premier SITREP", 
-    description: "Rédaction du rapport de situation initial",
-    owner: "Incident Manager",
-    priority: "medium",
-    status: "todo", 
-    dueAt: new Date(Date.now() + 60000 * 90).toISOString(), // 1h30 from now
-    createdAt: new Date(Date.now() - 60000 * 10).toISOString()
-  }
-];
-
 // Communication templates
-export const communicationTemplates: Record<string, { title: string; audience: string; message: string }> = {
-  "interne-flash": {
-    title: "Flash info - Incident cybersécurité",
-    audience: "Interne", 
-    message: `Chers collègues,
+export const communicationTemplates = {
+  "Interne": {
+    subject: "Information incident cybersécurité - [NIVEAU]",
+    template: `Chers collègues,
 
 Nous vous informons qu'un incident de cybersécurité a été détecté sur nos systèmes informatiques.
 
 **Statut actuel :** [À compléter]
-**Actions en cours :** [À compléter] 
+**Actions en cours :** [À compléter]
 **Mesures de précaution :** [À compléter]
 
 La cellule de crise est mobilisée et travaille à la résolution de l'incident.
@@ -278,111 +192,53 @@ La cellule de crise est mobilisée et travaille à la résolution de l'incident.
 Cordialement,
 L'équipe de gestion de crise`
   },
-  "interne-update": {
-    title: "Mise à jour - Point de situation",
-    audience: "Interne",
-    message: `Chers collègues,
-
-Point de situation sur l'incident de cybersécurité en cours :
-
-**Évolution :** [DÉTAIL]
-**Systèmes impactés :** [SYSTÈMES] 
-**Impact business :** [IMPACT]
-**Actions entreprises :** [ACTIONS]
-
-Nous vous tiendrons informés de l'évolution de la situation.
-
-L'équipe de gestion de crise`
-  },
-  "direction": {
-    title: "Point de situation - Direction",
-    audience: "Direction",
-    message: `Mesdames, Messieurs les Directeurs,
+  "Direction": {
+    subject: "Incident cybersécurité - Point de situation",
+    template: `Mesdames, Messieurs les Directeurs,
 
 Suite à la détection d'un incident de cybersécurité, voici le point de situation :
 
-**Nature de l'incident :** [DÉTAIL]
-**Impact :** [IMPACT] 
-**Actions entreprises :** [ACTIONS]
-**Estimation de résolution :** [À évaluer]
+**Nature de l'incident :** [À compléter]
+**Impact :** [À compléter]
+**Actions entreprises :** [À compléter]
+**Estimation de résolution :** [À compléter]
 
-Nous restons à votre disposition pour tout complément d'information.
-
-L'équipe de gestion de crise`
+Nous restons à votre disposition pour tout complément d'information.`
   },
-  "dpo": {
-    title: "Notification DPO - Incident sécurité", 
-    audience: "DPO",
-    message: `Bonjour,
+  "DPO": {
+    subject: "Incident sécurité - Notification DPO",
+    template: `Bonjour,
 
 Nous vous notifions un incident de sécurité susceptible d'impacter des données personnelles.
 
-**Description :** [DÉTAIL]
-**Données concernées :** [À analyser]
-**Mesures prises :** [ACTIONS]
+**Description :** [À compléter]
+**Données concernées :** [À compléter]
+**Mesures prises :** [À compléter]
 
-Merci de nous indiquer les actions à entreprendre au niveau RGPD.
-
-Cordialement,
-L'équipe de gestion de crise`
+Merci de nous indiquer les actions à entreprendre au niveau RGPD.`
   },
-  "anssi": {
-    title: "Déclaration incident ANSSI",
-    audience: "ANSSI", 
-    message: `Messieurs,
+  "ANSSI": {
+    subject: "Déclaration incident - Article R2321-3",
+    template: `Messieurs,
 
 Conformément à l'article R2321-3, nous vous déclarons l'incident suivant :
 
-**Type d'incident :** [DÉTAIL]
-**Horodatage :** [À préciser]
-**Systèmes impactés :** [SYSTÈMES]
-**Mesures prises :** [ACTIONS]
+**Type d'incident :** [À compléter]
+**Horodatage :** [À compléter]
+**Systèmes impactés :** [À compléter]
+**Mesures prises :** [À compléter]
 
-Nous restons à votre disposition pour tout complément.
-
-L'équipe de gestion de crise`
-  },
-  "cnil": {
-    title: "Pré-notification CNIL",
-    audience: "CNIL",
-    message: `Messieurs-Dames,
-
-Nous vous informons d'un incident de sécurité susceptible de constituer une violation de données personnelles :
-
-**Nature de l'incident :** [DÉTAIL]
-**Données potentiellement concernées :** [À analyser] 
-**Nombre approximatif de personnes :** [À évaluer]
-**Mesures prises :** [ACTIONS]
-
-Analyse en cours, notification formelle à suivre si confirmé.
-
-L'équipe de gestion de crise`
-  },
-  "partenaires": {
-    title: "Communication partenaires",
-    audience: "Partenaires",
-    message: `Chers partenaires,
-
-Nous vous informons d'un incident de cybersécurité pouvant impacter nos services communs :
-
-**Services concernés :** [SYSTÈMES]
-**Impact estimé :** [IMPACT] 
-**Actions en cours :** [ACTIONS]
-**Estimation de résolution :** [À évaluer]
-
-Nous vous tiendrons informés de l'évolution.
-
-Cordialement,
-L'équipe de gestion de crise`
+Nous restons à votre disposition pour tout complément.`
   }
 };
 
 // Default key contacts
 export const defaultKeyContacts = [
-  { name: "Jean Dupont", role: "RSSI", contact: "+33 6 12 34 56 78" },
-  { name: "Marie Martin", role: "IT Ops", contact: "+33 6 23 45 67 89" },
-  { name: "Pierre Durand", role: "DPO", contact: "+33 6 34 56 78 90" },
-  { name: "Sophie Leblanc", role: "Direction", contact: "+33 6 45 67 89 01" }
+  { name: "RSSI", role: "Responsable Sécurité", contact: "+33 X XX XX XX XX" },
+  { name: "DSI", role: "Directeur Informatique", contact: "+33 X XX XX XX XX" },
+  { name: "DPO", role: "Délégué Protection Données", contact: "+33 X XX XX XX XX" },
+  { name: "Juridique", role: "Direction Juridique", contact: "+33 X XX XX XX XX" },
+  { name: "Communication", role: "Direction Communication", contact: "+33 X XX XX XX XX" }
 ];
 
 // Exercise objectives and rules

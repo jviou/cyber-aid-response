@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { CrisisSession, Mode, Severity, JournalEvent, ActionItem } from "@/types/crisis";
-import { defaultPhases, defaultKeyContacts, exerciseDefaults, seedJournalEvents, seedActions } from "@/data/crisisData";
+import { CrisisSession, Mode, Severity } from "@/types/crisis";
+import { defaultPhases, defaultKeyContacts, exerciseDefaults } from "@/data/crisisData";
 
 const STORAGE_KEY = "crisis-session";
 const AUTOSAVE_INTERVAL = 5000; // 5 seconds
@@ -55,15 +55,15 @@ export function useCrisisSession() {
         },
         injects: []
       })),
-      journal: mode === "real" ? seedJournalEvents : [{
+      journal: [{
         id: `journal-${Date.now()}`,
         category: "detection",
-        title: "Début de l'exercice",
+        title: mode === "exercise" ? "Début de l'exercice" : "Incident détecté",
         details: description,
         by: "Système",
         at: new Date().toISOString()
       }],
-      actions: mode === "real" ? seedActions : [],
+      actions: [],
       decisions: [],
       communications: [],
       resources: [],

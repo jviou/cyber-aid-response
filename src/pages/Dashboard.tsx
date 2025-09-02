@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ContactsCard } from "@/components/ContactsCard";
 import { 
   Clock, 
   CheckCircle, 
@@ -19,10 +18,9 @@ import { exerciseDefaults } from "@/data/crisisData";
 interface DashboardProps {
   session: CrisisSession;
   onExport: () => void;
-  onUpdateSession: (updater: (session: CrisisSession) => CrisisSession) => void;
 }
 
-export function Dashboard({ session, onExport, onUpdateSession }: DashboardProps) {
+export function Dashboard({ session, onExport }: DashboardProps) {
   const isExercise = session.mode === "exercise";
 
   // Calculate KPIs
@@ -98,10 +96,27 @@ export function Dashboard({ session, onExport, onUpdateSession }: DashboardProps
         </div>
 
         {/* Key Contacts */}
-        <ContactsCard 
-          contacts={session.keyContacts || []}
-          onUpdateContacts={(contacts) => onUpdateSession(session => ({ ...session, keyContacts: contacts }))}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Contacts clés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {session.keyContacts?.map((contact, index) => (
+                <div key={index} className="p-3 bg-muted rounded-lg">
+                  <h4 className="font-semibold">{contact.name}</h4>
+                  <p className="text-sm text-muted-foreground">{contact.role}</p>
+                  {contact.contact && (
+                    <p className="text-sm font-mono mt-1">{contact.contact}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -175,12 +190,6 @@ export function Dashboard({ session, onExport, onUpdateSession }: DashboardProps
           </CardContent>
         </Card>
       </div>
-
-      {/* Key Contacts */}
-      <ContactsCard 
-        contacts={session.keyContacts || []}
-        onUpdateContacts={(contacts) => onUpdateSession(session => ({ ...session, keyContacts: contacts }))}
-      />
 
       {/* Recent Events */}
       <Card>
