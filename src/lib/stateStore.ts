@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface AppState {
   meta: {
@@ -128,14 +128,14 @@ export async function loadState(sessionId: string): Promise<AppState> {
       .from('app_state')
       .select('state')
       .eq('session_id', sessionId)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       console.error('Error loading state:', error);
       return getDefaultState();
     }
 
-    return data?.state || getDefaultState();
+    return (data?.state as unknown as AppState) || getDefaultState();
   } catch (error) {
     console.error('Error loading state:', error);
     return getDefaultState();
@@ -148,9 +148,9 @@ export async function saveState(sessionId: string, state: AppState): Promise<voi
       .from('app_state')
       .upsert({
         session_id: sessionId,
-        state: state,
+        state: state as any,
         updated_at: new Date().toISOString()
-      });
+      } as any);
 
     if (error) {
       console.error('Error saving state:', error);
