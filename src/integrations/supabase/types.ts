@@ -293,6 +293,42 @@ export type Database = {
           },
         ]
       }
+      phases: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          operational_checklist: Json | null
+          order_index: number
+          session_id: string
+          strategic_checklist: Json | null
+          subtitle: string | null
+          title: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          operational_checklist?: Json | null
+          order_index: number
+          session_id: string
+          strategic_checklist?: Json | null
+          subtitle?: string | null
+          title: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          operational_checklist?: Json | null
+          order_index?: number
+          session_id?: string
+          strategic_checklist?: Json | null
+          subtitle?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       resources: {
         Row: {
           added_at: string
@@ -390,7 +426,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_member: {
+        Args: { sess: string }
+        Returns: boolean
+      }
     }
     Enums: {
       action_priority: "low" | "med" | "high"
