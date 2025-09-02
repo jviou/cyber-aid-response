@@ -10,6 +10,7 @@ import { CommunicationsPage } from "@/pages/CommunicationsPage";
 import { PhaseManagement } from "@/pages/PhaseManagement";
 import { DecisionsPage } from "@/pages/DecisionsPage";
 import { ResourcesPage } from "@/pages/ResourcesPage";
+import { GlossaryPage } from "@/pages/GlossaryPage";
 import NotFound from "@/pages/NotFound";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { toast } from 'sonner';
@@ -275,6 +276,7 @@ export function CrisisLayout() {
                   sessionId={sessionId}
                 />
               } />
+              <Route path="/glossary" element={<GlossaryPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

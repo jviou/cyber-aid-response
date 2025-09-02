@@ -138,9 +138,9 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                       {item.text}
                     </label>
                   </div>
-                  <div className="flex items-center gap-1 text-blue-600">
+                  <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'}`}>
                     <Clock className="w-4 h-4" />
-                    <span className="text-sm font-medium">À faire</span>
+                    <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
                   </div>
                 </div>
                 
@@ -215,9 +215,9 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                       {item.text}
                     </label>
                   </div>
-                  <div className="flex items-center gap-1 text-blue-600">
+                  <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'}`}>
                     <Clock className="w-4 h-4" />
-                    <span className="text-sm font-medium">À faire</span>
+                    <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
                   </div>
                 </div>
                 

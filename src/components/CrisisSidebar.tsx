@@ -8,7 +8,8 @@ import {
   MessageSquare,
   BarChart3,
   FileText,
-  Shield
+  Shield,
+  Book
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
     { title: "Décisions", url: "decisions", icon: Gavel },
     { title: "Communications", url: "communications", icon: MessageSquare },
     { title: "Ressources", url: "resources", icon: FileText },
+    { title: "Glossaire", url: "glossary", icon: Book },
   ];
 
   const phaseItems = [
