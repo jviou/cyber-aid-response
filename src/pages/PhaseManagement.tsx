@@ -73,189 +73,179 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 space-y-6">
+    <div className="bg-blue-600 min-h-screen">
       {/* Phase Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-800">PHASE {phase.order_index}</h1>
-          <p className="text-lg text-gray-600">{phase.title}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-4xl font-bold text-blue-600">{Math.round(getPhaseProgress(phase))}%</div>
-          <div className="text-sm text-gray-500">
-            {phase.strategic_checklist.filter((item: any) => item.completed).length + 
-             phase.operational_checklist.filter((item: any) => item.completed).length} / {phase.strategic_checklist.length + phase.operational_checklist.length} tâches
+      <div className="text-white p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold">PHASE {phase.order_index}</h1>
+            <p className="text-blue-200">{phase.title}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-4xl font-bold">{Math.round(getPhaseProgress(phase))}%</div>
+            <div className="text-sm text-blue-200">
+              {phase.strategic_checklist.filter((item: any) => item.completed).length + 
+               phase.operational_checklist.filter((item: any) => item.completed).length} / {phase.strategic_checklist.length + phase.operational_checklist.length} tâches
+            </div>
           </div>
         </div>
       </div>
 
       {/* Progress Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Progression de la phase</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span>Stratégique: {Math.round(getStrategicProgress(phase))}%</span>
-              <span>Opérationnel: {Math.round(getOperationalProgress(phase))}%</span>
-            </div>
-            <Progress value={getPhaseProgress(phase)} className="h-2" />
+      <div className="bg-white mx-6 rounded-lg p-4 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Progression de la phase</h3>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Stratégique: {Math.round(getStrategicProgress(phase))}%</span>
+            <span>Opérationnel: {Math.round(getOperationalProgress(phase))}%</span>
           </div>
-        </CardContent>
-      </Card>
+          <Progress value={getPhaseProgress(phase)} className="h-2" />
+        </div>
+      </div>
 
       {/* Management Sections */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mx-6 pb-6">
         {/* Strategic Management */}
-        <Card>
-          <CardHeader className="bg-gray-50">
+        <div className="bg-white rounded-lg overflow-hidden">
+          <div className="bg-gray-50 p-4 border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                <CardTitle>Gestion Stratégique</CardTitle>
+                <Settings className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-800">Gestion Stratégique</h3>
               </div>
               <div className="text-2xl font-bold text-blue-600">
                 {Math.round(getStrategicProgress(phase))}%
               </div>
             </div>
-            <CardDescription>
+            <p className="text-sm text-gray-600 mt-1">
               {phase.strategic_checklist.filter((item: any) => item.completed).length} / {phase.strategic_checklist.length} terminées
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="space-y-0">
-              {phase.strategic_checklist.map((item: any, index: number) => (
-                <div key={item.id} className={`p-4 border-b last:border-b-0 ${item.completed ? 'bg-green-50' : ''}`}>
-                  <div className="flex items-start gap-3 mb-3">
-                    <Checkbox
-                      id={`strategic-${item.id}`}
-                      checked={item.completed}
-                      onCheckedChange={(checked) => 
-                        updateChecklistItem(phase.id, 'strategic', item.id, checked as boolean)
-                      }
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <label 
-                        htmlFor={`strategic-${item.id}`}
-                        className={`block text-sm font-medium cursor-pointer ${item.completed ? 'line-through text-gray-500' : ''}`}
-                      >
-                        {item.text}
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-500">À faire</span>
-                    </div>
+            </p>
+          </div>
+          
+          <div className="divide-y divide-gray-200">
+            {phase.strategic_checklist.map((item: any) => (
+              <div key={item.id} className="p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <Checkbox
+                    id={`strategic-${item.id}`}
+                    checked={item.completed}
+                    onCheckedChange={(checked) => 
+                      updateChecklistItem(phase.id, 'strategic', item.id, checked as boolean)
+                    }
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <label 
+                      htmlFor={`strategic-${item.id}`}
+                      className="block font-medium text-gray-900 cursor-pointer"
+                    >
+                      {item.text}
+                    </label>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 ml-6">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Responsable</label>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          placeholder="Assigner à..." 
-                          className="text-xs h-8"
-                        />
-                        <Button size="sm" variant="outline" className="h-8 text-xs">
-                          Assigner
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Échéance</label>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="date"
-                          className="text-xs h-8"
-                        />
-                        <Button size="sm" variant="outline" className="h-8 text-xs">
-                          📅
-                        </Button>
-                      </div>
+                  <div className="flex items-center gap-1 text-blue-600">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm font-medium">À faire</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 ml-6">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Responsable</label>
+                    <Input 
+                      placeholder="Assigner à..." 
+                      className="text-sm h-8"
+                      defaultValue="jj/mm/aaaa --:--"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Échéance</label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        placeholder="jj/mm/aaaa --:--"
+                        className="text-sm h-8"
+                        defaultValue="jj/mm/aaaa --:--"
+                      />
+                      <Button size="sm" variant="outline" className="h-8 px-2">
+                        📅
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Operational Management */}
-        <Card>
-          <CardHeader className="bg-gray-50">
+        <div className="bg-white rounded-lg overflow-hidden">
+          <div className="bg-gray-50 p-4 border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                <CardTitle>Gestion Opérationnelle</CardTitle>
+                <Settings className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-800">Gestion Opérationnelle</h3>
               </div>
               <div className="text-2xl font-bold text-blue-600">
                 {Math.round(getOperationalProgress(phase))}%
               </div>
             </div>
-            <CardDescription>
+            <p className="text-sm text-gray-600 mt-1">
               {phase.operational_checklist.filter((item: any) => item.completed).length} / {phase.operational_checklist.length} terminées
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="space-y-0">
-              {phase.operational_checklist.map((item: any, index: number) => (
-                <div key={item.id} className={`p-4 border-b last:border-b-0 ${item.completed ? 'bg-green-50' : ''}`}>
-                  <div className="flex items-start gap-3 mb-3">
-                    <Checkbox
-                      id={`operational-${item.id}`}
-                      checked={item.completed}
-                      onCheckedChange={(checked) => 
-                        updateChecklistItem(phase.id, 'operational', item.id, checked as boolean)
-                      }
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <label 
-                        htmlFor={`operational-${item.id}`}
-                        className={`block text-sm font-medium cursor-pointer ${item.completed ? 'line-through text-gray-500' : ''}`}
-                      >
-                        {item.text}
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-500">À faire</span>
-                    </div>
+            </p>
+          </div>
+          
+          <div className="divide-y divide-gray-200">
+            {phase.operational_checklist.map((item: any) => (
+              <div key={item.id} className="p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <Checkbox
+                    id={`operational-${item.id}`}
+                    checked={item.completed}
+                    onCheckedChange={(checked) => 
+                      updateChecklistItem(phase.id, 'operational', item.id, checked as boolean)
+                    }
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <label 
+                      htmlFor={`operational-${item.id}`}
+                      className="block font-medium text-gray-900 cursor-pointer"
+                    >
+                      {item.text}
+                    </label>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 ml-6">
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Responsable</label>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          placeholder="Assigner à..." 
-                          className="text-xs h-8"
-                        />
-                        <Button size="sm" variant="outline" className="h-8 text-xs">
-                          Assigner
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 block mb-1">Échéance</label>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="date"
-                          className="text-xs h-8"
-                        />
-                        <Button size="sm" variant="outline" className="h-8 text-xs">
-                          📅
-                        </Button>
-                      </div>
+                  <div className="flex items-center gap-1 text-blue-600">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm font-medium">À faire</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 ml-6">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Responsable</label>
+                    <Input 
+                      placeholder="Assigner à..." 
+                      className="text-sm h-8"
+                      defaultValue="jj/mm/aaaa --:--"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Échéance</label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        placeholder="jj/mm/aaaa --:--"
+                        className="text-sm h-8"
+                        defaultValue="jj/mm/aaaa --:--"
+                      />
+                      <Button size="sm" variant="outline" className="h-8 px-2">
+                        📅
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
