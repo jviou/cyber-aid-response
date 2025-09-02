@@ -32,6 +32,7 @@ interface DecisionsPageProps {
 
 export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }: DecisionsPageProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<RIDAItem | null>(null);
   const [ridaItems, setRidaItems] = useState<RIDAItem[]>([
     {
       id: "1",
@@ -296,7 +297,11 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
               </TableHeader>
               <TableBody>
                 {ridaItems.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-gray-50">
+                  <TableRow 
+                    key={item.id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setSelectedItem(item)}
+                  >
                     <TableCell className="font-medium">{item.date}</TableCell>
                     <TableCell>{item.time}</TableCell>
                     <TableCell className="font-medium">{item.subject}</TableCell>
@@ -369,6 +374,69 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
           </div>
         </CardContent>
       </Card>
+
+      {/* Item Detail Dialog */}
+      <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedItem && getTypeIcon(selectedItem.type)}
+              {selectedItem?.subject}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.type === 'I' && 'Information'} 
+              {selectedItem?.type === 'D' && 'Décision'} 
+              {selectedItem?.type === 'A' && 'Action'} 
+              · Ajouté le {selectedItem?.date} à {selectedItem?.time}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Porteur</Label>
+                  <p className="text-sm mt-1">{selectedItem.owner || 'Non assigné'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">État</Label>
+                  <div className="mt-1">
+                    <Badge 
+                      variant={getStatusBadgeVariant(selectedItem.status)}
+                      className={`${getStatusColor(selectedItem.status)} text-black`}
+                    >
+                      {selectedItem.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              {selectedItem.dueDate && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Échéance</Label>
+                  <p className="text-sm mt-1 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    {selectedItem.dueDate}
+                  </p>
+                </div>
+              )}
+              
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Description complète</Label>
+                <div className="mt-2 p-3 bg-muted rounded-md">
+                  <p className="text-sm whitespace-pre-wrap">{selectedItem.description}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedItem(null)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
