@@ -105,13 +105,7 @@ export function LocalCrisisLayout({ session, onExport }: LocalCrisisLayoutProps)
             <Routes>
               <Route 
                 path="/dashboard" 
-                element={
-                  <Dashboard 
-                    session={session} 
-                    onExport={onExport}
-                    onUpdateSession={updateSession}
-                  />
-                } 
+                element={<Dashboard />} 
               />
               <Route 
                 path="/journal" 

@@ -176,22 +176,13 @@ export function SessionPage() {
       <div className="min-h-screen flex w-full bg-gradient-card">
         <CrisisSidebar sessionMode={session.mode} />
         <div className="flex-1 flex flex-col">
-          <SessionHeader 
-            session={session} 
-            participants={participants}
-          />
+          <SessionHeader />
           <main className="flex-1 p-6 overflow-auto">
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route 
                 path="dashboard" 
-                element={
-                  <Dashboard 
-                    session={legacySession} 
-                    onExport={() => {}} 
-                    onUpdateSession={() => {}} 
-                  />
-                } 
+                element={<Dashboard />} 
               />
               <Route 
                 path="journal" 
