@@ -10,8 +10,27 @@ export interface ResourceFile {
   mime_type?: string;
 }
 
+async function ensureSessionExists(sessionId: string) {
+  const { data } = await supabase
+    .from('sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .maybeSingle();
+  if (!data) {
+    await supabase.from('sessions').insert({
+      id: sessionId,
+      title: 'Local Session',
+      mode: 'exercise',
+      severity: 'moderate'
+    } as any);
+  }
+}
+
 export async function uploadFile(file: File, sessionId: string): Promise<ResourceFile> {
   try {
+    // Ensure session exists to satisfy FK
+    await ensureSessionExists(sessionId);
+
     // Generate unique filename
     const fileId = crypto.randomUUID();
     const fileExtension = file.name.split('.').pop();

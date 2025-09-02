@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { defaultPhases } from '@/data/crisisData';
 
 export interface AppState {
   meta: {
@@ -93,32 +94,24 @@ export function getDefaultState(): AppState {
     actions: [],
     decisions: [],
     communications: [],
-    phases: [
-      {
-        id: 'P1',
-        title: 'Phase 1 - Mobiliser',
-        strategic: [],
-        operational: []
-      },
-      {
-        id: 'P2', 
-        title: 'Phase 2 - Confiance',
-        strategic: [],
-        operational: []
-      },
-      {
-        id: 'P3',
-        title: 'Phase 3 - Relancer', 
-        strategic: [],
-        operational: []
-      },
-      {
-        id: 'P4',
-        title: 'Phase 4 - Capitaliser',
-        strategic: [],
-        operational: []
-      }
-    ]
+    phases: defaultPhases.map(p => ({
+      id: p.id as 'P1' | 'P2' | 'P3' | 'P4',
+      title: `${p.title} - ${p.subtitle || ''}`.trim(),
+      strategic: (p.checklist?.strategic || []).map(item => ({
+        id: item.id,
+        text: item.text,
+        checked: item.status === 'done',
+        assignee: null,
+        dueAt: null
+      })),
+      operational: (p.checklist?.operational || []).map(item => ({
+        id: item.id,
+        text: item.text,
+        checked: item.status === 'done',
+        assignee: null,
+        dueAt: null
+      }))
+    }))
   };
 }
 
