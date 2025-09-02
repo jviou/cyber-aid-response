@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,19 +10,20 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Clock, Plus, Calendar, User, AlertCircle, Download, MoreVertical } from "lucide-react";
+import { Clock, Plus, Calendar, User, Download } from "lucide-react";
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { CrisisSession, ActionItem } from "@/types/crisis";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import type { ActionItem, ActionPriority, ActionStatus } from "@/types/database";
 
 interface ActionsBoardProps {
-  session: CrisisSession;
-  onUpdateSession: (updater: (session: CrisisSession) => CrisisSession) => void;
+  actions: ActionItem[];
+  onCreateAction: (actionData: Omit<ActionItem, 'id' | 'session_id' | 'created_at' | 'updated_at' | 'client_op_id'>) => Promise<void>;
+  onUpdateAction: (id: string, updates: Partial<ActionItem>) => Promise<void>;
 }
 
 const priorityColors = {
   low: "bg-gray-100 text-gray-800",
-  medium: "bg-yellow-100 text-yellow-800", 
+  med: "bg-yellow-100 text-yellow-800", 
   high: "bg-red-100 text-red-800"
 };
 
@@ -31,108 +33,87 @@ const statusColumns = {
   done: { title: "Terminé", color: "bg-green-50" }
 };
 
-export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
-  const { toast } = useToast();
+export function ActionsBoard({ actions, onCreateAction, onUpdateAction }: ActionsBoardProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newAction, setNewAction] = useState({
     title: "",
     description: "",
     owner: "",
-    priority: "medium" as "low" | "medium" | "high",
-    dueAt: ""
+    priority: "med" as ActionPriority,
+    status: "todo" as ActionStatus,
+    due_at: ""
   });
 
   const actionsByStatus = useMemo(() => {
     const grouped = {
-      todo: session.actions.filter(a => a.status === "todo"),
-      doing: session.actions.filter(a => a.status === "doing"),
-      done: session.actions.filter(a => a.status === "done")
+      todo: actions.filter(a => a.status === "todo"),
+      doing: actions.filter(a => a.status === "doing"),
+      done: actions.filter(a => a.status === "done")
     };
     return grouped;
-  }, [session.actions]);
+  }, [actions]);
 
-  const handleAddAction = () => {
+  const handleAddAction = async () => {
     if (!newAction.title) {
-      toast({
-        title: "Erreur",
-        description: "Le titre est requis",
-        variant: "destructive"
-      });
+      toast.error("Le titre est requis");
       return;
     }
 
-    const action: ActionItem = {
-      id: `action-${Date.now()}`,
-      title: newAction.title,
-      description: newAction.description,
-      owner: newAction.owner,
-      priority: newAction.priority,
-      status: "todo",
-      dueAt: newAction.dueAt || undefined,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      await onCreateAction({
+        title: newAction.title,
+        description: newAction.description || undefined,
+        owner: newAction.owner || undefined,
+        priority: newAction.priority,
+        status: newAction.status,
+        due_at: newAction.due_at || undefined
+      });
 
-    onUpdateSession(session => ({
-      ...session,
-      actions: [...session.actions, action]
-    }));
-
-    // Add journal entry
-    onUpdateSession(session => ({
-      ...session,
-      journal: [...session.journal, {
-        id: `journal-${Date.now()}`,
-        category: "action",
-        title: `Nouvelle action: ${action.title}`,
-        details: `Assignée à: ${action.owner || "Non assigné"}`,
-        by: "Système",
-        at: new Date().toISOString()
-      }]
-    }));
-
-    setNewAction({ title: "", description: "", owner: "", priority: "medium", dueAt: "" });
-    setIsAddOpen(false);
-    
-    toast({
-      title: "Action créée",
-      description: "L'action a été ajoutée au tableau"
-    });
+      setNewAction({ 
+        title: "", 
+        description: "", 
+        owner: "", 
+        priority: "med", 
+        status: "todo",
+        due_at: "" 
+      });
+      setIsAddOpen(false);
+      
+      toast.success("Action créée avec succès");
+    } catch (error) {
+      console.error('Error creating action:', error);
+      toast.error("Erreur lors de la création de l'action");
+    }
   };
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
     
     if (source.droppableId === destination.droppableId) return;
 
-    const newStatus = destination.droppableId as "todo" | "doing" | "done";
+    const newStatus = destination.droppableId as ActionStatus;
     
-    onUpdateSession(session => ({
-      ...session,
-      actions: session.actions.map(action => 
-        action.id === draggableId 
-          ? { ...action, status: newStatus }
-          : action
-      )
-    }));
-
-    toast({
-      title: "Action déplacée",
-      description: `Action déplacée vers ${statusColumns[newStatus].title}`
-    });
+    try {
+      await onUpdateAction(draggableId, { status: newStatus });
+      toast.success(`Action déplacée vers ${statusColumns[newStatus].title}`);
+    } catch (error) {
+      console.error('Error updating action:', error);
+      toast.error("Erreur lors du déplacement de l'action");
+    }
   };
 
   const exportCSV = () => {
     const headers = ["Titre", "Description", "Propriétaire", "Priorité", "Statut", "Échéance", "Créé le"];
-    const csvData = session.actions.map(action => [
+    const csvData = actions.map(action => [
       action.title,
       action.description || "",
       action.owner || "",
       action.priority || "",
       action.status,
-      action.dueAt ? new Date(action.dueAt).toLocaleString('fr-FR') : "",
-      new Date(action.createdAt).toLocaleString('fr-FR')
+      action.due_at ? new Date(action.due_at).toLocaleString('fr-FR') : "",
+      new Date(action.created_at).toLocaleString('fr-FR')
     ]);
     
     const csv = [headers, ...csvData]
@@ -143,14 +124,11 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `actions-${session.id}.csv`;
+    a.download = `actions-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     
-    toast({
-      title: "Export terminé",
-      description: "Les actions ont été exportées en CSV"
-    });
+    toast.success("Actions exportées en CSV");
   };
 
   const formatDate = (dateStr: string) => {
@@ -228,13 +206,13 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                 
                 <div className="grid gap-2">
                   <Label>Priorité</Label>
-                  <Select value={newAction.priority} onValueChange={(value: "low" | "medium" | "high") => setNewAction({...newAction, priority: value})}>
+                  <Select value={newAction.priority} onValueChange={(value: ActionPriority) => setNewAction({...newAction, priority: value})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="low">Faible</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
+                      <SelectItem value="med">Moyenne</SelectItem>
                       <SelectItem value="high">Élevée</SelectItem>
                     </SelectContent>
                   </Select>
@@ -244,8 +222,8 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                   <Label>Échéance (optionnel)</Label>
                   <Input 
                     type="datetime-local"
-                    value={newAction.dueAt}
-                    onChange={(e) => setNewAction({...newAction, dueAt: e.target.value})}
+                    value={newAction.due_at}
+                    onChange={(e) => setNewAction({...newAction, due_at: e.target.value})}
                   />
                 </div>
                 
@@ -301,7 +279,7 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                                         className={`text-xs ${priorityColors[action.priority]}`}
                                       >
                                         {action.priority === 'low' ? 'Faible' : 
-                                         action.priority === 'medium' ? 'Moyenne' : 'Élevée'}
+                                         action.priority === 'med' ? 'Moyenne' : 'Élevée'}
                                       </Badge>
                                     )}
                                   </div>
@@ -321,10 +299,10 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                                         </>
                                       )}
                                     </div>
-                                    {action.dueAt && (
+                                    {action.due_at && (
                                       <div className="flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
-                                        {formatDate(action.dueAt)}
+                                        {formatDate(action.due_at)}
                                       </div>
                                     )}
                                   </div>
@@ -364,11 +342,11 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {session.actions
+                  {actions
                     .sort((a, b) => {
-                      const priorityOrder = { high: 3, medium: 2, low: 1 };
+                      const priorityOrder = { high: 3, med: 2, low: 1 };
                       return (priorityOrder[b.priority || 'low'] - priorityOrder[a.priority || 'low']) || 
-                             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                             new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                     })
                     .map((action) => (
                       <TableRow key={action.id}>
@@ -390,7 +368,7 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                               className={priorityColors[action.priority]}
                             >
                               {action.priority === 'low' ? 'Faible' : 
-                               action.priority === 'medium' ? 'Moyenne' : 'Élevée'}
+                               action.priority === 'med' ? 'Moyenne' : 'Élevée'}
                             </Badge>
                           )}
                         </TableCell>
@@ -403,17 +381,17 @@ export function ActionsBoard({ session, onUpdateSession }: ActionsBoardProps) {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {action.dueAt ? formatDate(action.dueAt) : "—"}
+                          {action.due_at ? formatDate(action.due_at) : "—"}
                         </TableCell>
                         <TableCell>
-                          {new Date(action.createdAt).toLocaleDateString('fr-FR')}
+                          {new Date(action.created_at).toLocaleDateString('fr-FR')}
                         </TableCell>
                       </TableRow>
                     ))}
                 </TableBody>
               </Table>
               
-              {session.actions.length === 0 && (
+              {actions.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   Aucune action créée pour l'instant
                 </div>

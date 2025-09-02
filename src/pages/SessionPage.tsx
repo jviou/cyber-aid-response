@@ -1,7 +1,9 @@
+
 import { useParams, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRealtimeSession } from "@/hooks/useRealtimeSession";
+import { usePhases } from "@/hooks/usePhases";
 import { AuthModal } from "@/components/AuthModal";
 import { SessionHeader } from "@/components/SessionHeader";
 import { CrisisSidebar } from "@/components/CrisisSidebar";
@@ -11,6 +13,7 @@ import { JournalPage } from "./JournalPage";
 import { ActionsBoard } from "./ActionsBoard";
 import { CommunicationsPage } from "./CommunicationsPage";
 import { PhaseManagement } from "./PhaseManagement";
+import { PhasesPage } from "./PhasesPage";
 import NotFound from "./NotFound";
 
 export function SessionPage() {
@@ -28,8 +31,13 @@ export function SessionPage() {
     communications,
     resources,
     loading: sessionLoading,
-    joinSession
+    joinSession,
+    createAction,
+    updateAction,
+    createJournalEvent
   } = useRealtimeSession(sessionId!);
+
+  const { phases, loading: phasesLoading } = usePhases(sessionId!);
 
   // Check if user has joined the session
   useEffect(() => {
@@ -55,7 +63,7 @@ export function SessionPage() {
     }
   };
 
-  if (authLoading || sessionLoading) {
+  if (authLoading || sessionLoading || phasesLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-card">
         <div className="text-center">
@@ -96,7 +104,7 @@ export function SessionPage() {
     );
   }
 
-  // Mock legacy session object for compatibility
+  // Mock legacy session object for compatibility with existing components
   const legacySession = {
     id: session.id,
     mode: session.mode as any,
@@ -104,7 +112,7 @@ export function SessionPage() {
     description: session.description || '',
     severity: session.severity as any,
     createdAt: session.created_at,
-    phases: [], // TODO: Implement phases
+    phases: [], // Will be replaced by real phases when components are updated
     journal: journalEvents.map(event => ({
       ...event,
       category: event.category as any,
@@ -134,7 +142,17 @@ export function SessionPage() {
       note: resource.note,
       tags: resource.tags || []
     })),
-    keyContacts: [] // TODO: Implement contacts
+    keyContacts: []
+  };
+
+  // Handle create action with Supabase
+  const handleCreateAction = async (actionData: any) => {
+    return createAction(actionData);
+  };
+
+  // Handle update action with Supabase
+  const handleUpdateAction = async (id: string, updates: any) => {
+    return updateAction(id, updates);
   };
 
   return (
@@ -172,8 +190,9 @@ export function SessionPage() {
                 path="actions" 
                 element={
                   <ActionsBoard 
-                    session={legacySession} 
-                    onUpdateSession={() => {}} 
+                    actions={actions}
+                    onCreateAction={handleCreateAction}
+                    onUpdateAction={handleUpdateAction}
                   />
                 }
               />
@@ -185,6 +204,15 @@ export function SessionPage() {
                     onUpdateSession={() => {}} 
                   />
                 }
+              />
+              <Route 
+                path="phases" 
+                element={
+                  <PhasesPage 
+                    sessionId={sessionId!}
+                    phases={phases}
+                  />
+                } 
               />
               <Route 
                 path="phases/:phaseId" 
