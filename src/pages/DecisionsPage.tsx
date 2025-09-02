@@ -2,12 +2,27 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Clock, User } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Clock, User, Info, CheckCircle, AlertCircle } from "lucide-react";
 import { Decision } from "@/types/crisis";
 import { toast } from "sonner";
+
+interface RIDAItem {
+  id: string;
+  date: string;
+  time: string;
+  subject: string;
+  type: 'I' | 'D' | 'A'; // Information, Décision, Action
+  description: string;
+  owner: string;
+  status: 'À initier' | 'En cours' | 'En pause' | 'En retard' | 'Bloqué' | 'Terminé';
+  dueDate?: string;
+}
 
 interface DecisionsPageProps {
   decisions: Decision[];
@@ -17,280 +32,343 @@ interface DecisionsPageProps {
 
 export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }: DecisionsPageProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newDecision, setNewDecision] = useState({
-    question: "",
-    optionChosen: "",
-    rationale: "",
-    validator: "",
-    impacts: [] as string[]
+  const [ridaItems, setRidaItems] = useState<RIDAItem[]>([
+    {
+      id: "1",
+      date: "26/11/2022",
+      time: "17:42",
+      subject: "Messagerie",
+      type: "I",
+      description: "Mise à pied fonctionnel, le messagerie central compromis par l'attaquant, qui a potentiellement accès à tous emails",
+      owner: "Admin",
+      status: "À initier"
+    },
+    {
+      id: "2", 
+      date: "26/11/2022",
+      time: "17:42",
+      subject: "Messagerie",
+      type: "D",
+      description: "Envoyer une communication interne via whatsapp et affichage dans les bureaux des services majeurs l'invitant à l'utiliser leurs boîtes mails personnelles",
+      owner: "Jean",
+      status: "À initier",
+      dueDate: "26/11/2022"
+    }
+  ]);
+  
+  const [newRidaItem, setNewRidaItem] = useState({
+    subject: "",
+    type: "D" as 'I' | 'D' | 'A',
+    description: "",
+    owner: "",
+    status: "À initier" as RIDAItem['status'],
+    dueDate: ""
   });
 
-  const handleAddDecision = () => {
-    if (!newDecision.question || !newDecision.optionChosen) {
-      toast.error("Question et option choisie sont requises");
+  const handleAddRidaItem = () => {
+    if (!newRidaItem.subject || !newRidaItem.description) {
+      toast.error("Sujet et description sont requis");
       return;
     }
 
-    onCreateDecision({
-      question: newDecision.question,
-      optionChosen: newDecision.optionChosen,
-      rationale: newDecision.rationale,
-      validator: newDecision.validator,
-      impacts: newDecision.impacts.filter(impact => impact.trim() !== "")
-    });
+    const now = new Date();
+    const newItem: RIDAItem = {
+      id: Date.now().toString(),
+      date: now.toLocaleDateString('fr-FR'),
+      time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      subject: newRidaItem.subject,
+      type: newRidaItem.type,
+      description: newRidaItem.description,
+      owner: newRidaItem.owner,
+      status: newRidaItem.status,
+      dueDate: newRidaItem.dueDate || undefined
+    };
 
-    setNewDecision({
-      question: "",
-      optionChosen: "",
-      rationale: "",
-      validator: "",
-      impacts: []
+    setRidaItems([...ridaItems, newItem]);
+    
+    setNewRidaItem({
+      subject: "",
+      type: "D",
+      description: "",
+      owner: "",
+      status: "À initier",
+      dueDate: ""
     });
     setIsAddOpen(false);
     
-    toast.success("Décision enregistrée");
+    toast.success("Élément RIDA ajouté");
   };
 
-  const handleDeleteDecision = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette décision ?")) {
-      onDeleteDecision(id);
-      toast.success("Décision supprimée");
+  const handleDeleteRidaItem = (id: string) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
+      setRidaItems(ridaItems.filter(item => item.id !== id));
+      toast.success("Élément supprimé");
     }
   };
 
-  const handleAddImpact = () => {
-    setNewDecision({
-      ...newDecision,
-      impacts: [...newDecision.impacts, ""]
-    });
+  const updateItemStatus = (id: string, newStatus: RIDAItem['status']) => {
+    setRidaItems(ridaItems.map(item => 
+      item.id === id ? { ...item, status: newStatus } : item
+    ));
   };
 
-  const handleUpdateImpact = (index: number, value: string) => {
-    const updatedImpacts = [...newDecision.impacts];
-    updatedImpacts[index] = value;
-    setNewDecision({
-      ...newDecision,
-      impacts: updatedImpacts
-    });
+  const getStatusBadgeVariant = (status: RIDAItem['status']) => {
+    switch (status) {
+      case 'À initier': return 'outline';
+      case 'En cours': return 'default';
+      case 'En pause': return 'secondary';
+      case 'En retard': return 'destructive';
+      case 'Bloqué': return 'destructive';
+      case 'Terminé': return 'default';
+      default: return 'outline';
+    }
   };
 
-  const handleRemoveImpact = (index: number) => {
-    setNewDecision({
-      ...newDecision,
-      impacts: newDecision.impacts.filter((_, i) => i !== index)
-    });
+  const getStatusColor = (status: RIDAItem['status']) => {
+    switch (status) {
+      case 'À initier': return 'bg-gray-100';
+      case 'En cours': return 'bg-yellow-100';
+      case 'En pause': return 'bg-orange-100';
+      case 'En retard': return 'bg-blue-100';
+      case 'Bloqué': return 'bg-red-100';
+      case 'Terminé': return 'bg-green-100';
+      default: return 'bg-gray-100';
+    }
+  };
+
+  const getTypeIcon = (type: 'I' | 'D' | 'A') => {
+    switch (type) {
+      case 'I': return <Info className="w-4 h-4 text-blue-600" />;
+      case 'D': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'A': return <AlertCircle className="w-4 h-4 text-orange-600" />;
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Décisions</h1>
-          <p className="text-muted-foreground mt-2">
-            Suivi des décisions prises durant la crise
-          </p>
-        </div>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvelle Décision
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Nouvelle Décision</DialogTitle>
-              <DialogDescription>
-                Enregistrer une décision prise durant la gestion de crise
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label>Question/Problème</Label>
-                <Textarea
-                  value={newDecision.question}
-                  onChange={(e) => setNewDecision({...newDecision, question: e.target.value})}
-                  placeholder="Quelle est la question ou le problème à résoudre ?"
-                  rows={3}
-                />
-              </div>
+      <div className="bg-gradient-to-r from-pink-200 to-purple-200 p-6 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Relevé des Informations, Décisions & Actions (RIDA)
+            </h1>
+            <p className="text-gray-600 mt-2 max-w-4xl">
+              Le RIDA constitue la ligne guide de suivi des informations, décisions et actions abordées pendant la crise. Il journal de gestion de crise qui permet au porteur reprendre les différents points de décision.
+            </p>
+          </div>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvel élément
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Nouvel élément RIDA</DialogTitle>
+                <DialogDescription>
+                  Ajouter une information, décision ou action au relevé
+                </DialogDescription>
+              </DialogHeader>
               
-              <div className="grid gap-2">
-                <Label>Option choisie</Label>
-                <Textarea
-                  value={newDecision.optionChosen}
-                  onChange={(e) => setNewDecision({...newDecision, optionChosen: e.target.value})}
-                  placeholder="Quelle décision a été prise ?"
-                  rows={2}
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>Justification</Label>
-                <Textarea
-                  value={newDecision.rationale}
-                  onChange={(e) => setNewDecision({...newDecision, rationale: e.target.value})}
-                  placeholder="Pourquoi cette décision a-t-elle été prise ?"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>Validé par</Label>
-                <Input 
-                  value={newDecision.validator}
-                  onChange={(e) => setNewDecision({...newDecision, validator: e.target.value})}
-                  placeholder="Qui a validé cette décision ?"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>Impacts identifiés</Label>
-                {newDecision.impacts.map((impact, index) => (
-                  <div key={index} className="flex items-center gap-2">
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Sujet</Label>
                     <Input
-                      value={impact}
-                      onChange={(e) => handleUpdateImpact(index, e.target.value)}
-                      placeholder={`Impact ${index + 1}`}
+                      value={newRidaItem.subject}
+                      onChange={(e) => setNewRidaItem({...newRidaItem, subject: e.target.value})}
+                      placeholder="Investigations, Messagerie, etc."
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveImpact(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddImpact}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un impact
+                  
+                  <div className="grid gap-2">
+                    <Label>Type</Label>
+                    <Select 
+                      value={newRidaItem.type} 
+                      onValueChange={(value: 'I' | 'D' | 'A') => setNewRidaItem({...newRidaItem, type: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="I">I - Information</SelectItem>
+                        <SelectItem value="D">D - Décision</SelectItem>
+                        <SelectItem value="A">A - Action</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={newRidaItem.description}
+                    onChange={(e) => setNewRidaItem({...newRidaItem, description: e.target.value})}
+                    placeholder="Description détaillée..."
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Porteur</Label>
+                    <Input
+                      value={newRidaItem.owner}
+                      onChange={(e) => setNewRidaItem({...newRidaItem, owner: e.target.value})}
+                      placeholder="Responsable"
+                    />
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label>État</Label>
+                    <Select 
+                      value={newRidaItem.status} 
+                      onValueChange={(value: RIDAItem['status']) => setNewRidaItem({...newRidaItem, status: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="À initier">À initier</SelectItem>
+                        <SelectItem value="En cours">En cours</SelectItem>
+                        <SelectItem value="En pause">En pause</SelectItem>
+                        <SelectItem value="En retard">En retard</SelectItem>
+                        <SelectItem value="Bloqué">Bloqué</SelectItem>
+                        <SelectItem value="Terminé">Terminé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {newRidaItem.type === 'A' && (
+                  <div className="grid gap-2">
+                    <Label>Échéance (optionnel)</Label>
+                    <Input
+                      type="date"
+                      value={newRidaItem.dueDate}
+                      onChange={(e) => setNewRidaItem({...newRidaItem, dueDate: e.target.value})}
+                    />
+                  </div>
+                )}
+                
+                <Button onClick={handleAddRidaItem} className="w-full">
+                  Ajouter l'élément
                 </Button>
               </div>
-              
-              <Button onClick={handleAddDecision} className="w-full">
-                Enregistrer la Décision
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
+        
+        <div className="mt-4 text-sm text-gray-600">
+          <p className="mb-2"><strong>Le relevé comprend :</strong></p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <p>• <strong>Information</strong> : l'élément factuel diffusé à tous les membres de la cellule</p>
+            <p>• <strong>Décision</strong> : les décisions prises pour faire avancer la crise par la cellule décisionnelle</p>
+            <p>• <strong>Action</strong> : les tâches à réaliser pour parvenir à un résultat</p>
+          </div>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{decisions.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Aujourd'hui</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {decisions.filter(d => 
-                new Date(d.decidedAt).toDateString() === new Date().toDateString()
-              ).length}
+      {/* RIDA Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Tableau RIDA</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-purple-100">
+                  <TableHead className="w-24">Date</TableHead>
+                  <TableHead className="w-20">Heure</TableHead>
+                  <TableHead className="w-32">Sujet</TableHead>
+                  <TableHead className="w-8 text-center">I</TableHead>
+                  <TableHead className="w-8 text-center">D</TableHead>
+                  <TableHead className="w-8 text-center">A</TableHead>
+                  <TableHead className="w-32">Échéance de l'action</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-24">Porteur</TableHead>
+                  <TableHead className="w-24">État</TableHead>
+                  <TableHead className="w-16"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ridaItems.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-gray-50">
+                    <TableCell className="font-medium">{item.date}</TableCell>
+                    <TableCell>{item.time}</TableCell>
+                    <TableCell className="font-medium">{item.subject}</TableCell>
+                    <TableCell className="text-center">
+                      {item.type === 'I' && getTypeIcon('I')}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.type === 'D' && getTypeIcon('D')}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.type === 'A' && getTypeIcon('A')}
+                    </TableCell>
+                    <TableCell>{item.dueDate || '-'}</TableCell>
+                    <TableCell className="max-w-md">
+                      <p className="text-sm line-clamp-2">{item.description}</p>
+                    </TableCell>
+                    <TableCell>{item.owner}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={item.status}
+                        onValueChange={(value: RIDAItem['status']) => updateItemStatus(item.id, value)}
+                      >
+                        <SelectTrigger className={`w-full text-xs ${getStatusColor(item.status)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="À initier">À initier</SelectItem>
+                          <SelectItem value="En cours">En cours</SelectItem>
+                          <SelectItem value="En pause">En pause</SelectItem>
+                          <SelectItem value="En retard">En retard</SelectItem>
+                          <SelectItem value="Bloqué">Bloqué</SelectItem>
+                          <SelectItem value="Terminé">Terminé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteRidaItem(item.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {ridaItems.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucun élément dans le relevé pour l'instant
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Avec impacts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {decisions.filter(d => d.impacts && d.impacts.length > 0).length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Decisions List */}
-      <div className="space-y-4">
-        {decisions.length > 0 ? (
-          decisions
-            .sort((a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime())
-            .map((decision) => (
-              <Card key={decision.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{decision.question}</CardTitle>
-                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        {new Date(decision.decidedAt).toLocaleString('fr-FR')}
-                        {decision.validator && (
-                          <>
-                            <span>•</span>
-                            <User className="w-3 h-3" />
-                            <span>Validé par {decision.validator}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteDecision(decision.id)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="font-medium text-sm text-green-800 bg-green-50 px-2 py-1 rounded mb-2">
-                        ✓ Décision prise
-                      </h4>
-                      <p>{decision.optionChosen}</p>
-                    </div>
-                    
-                    {decision.rationale && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">Justification</h4>
-                        <p className="text-muted-foreground">{decision.rationale}</p>
-                      </div>
-                    )}
-                    
-                    {decision.impacts && decision.impacts.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-sm mb-1">Impacts identifiés</h4>
-                        <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                          {decision.impacts.map((impact, index) => (
-                            <li key={index}>{impact}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-        ) : (
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">
-                Aucune décision enregistrée pour l'instant
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Instructions */}
+      <Card className="bg-blue-50">
+        <CardContent className="pt-6">
+          <h3 className="font-medium mb-3">Instructions d'utilisation du RIDA</h3>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p><strong>1.</strong> Notez de manière abrégée les informations, décisions et actions abordées en cellule de crise.</p>
+            <p><strong>2.</strong> Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ? Indiquez un I, D, ou A dans la colonne Type correspondante.</p>
+            <p><strong>3.</strong> Notez qui est l'acteur/le porteur associé à ce sujet.</p>
+            <p><strong>4.</strong> Précisez la date d'échéance s'il s'agit d'une action.</p>
+            <p><strong>5.</strong> Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions à réaliser pour faire le point d'avancement de ces actions.</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
