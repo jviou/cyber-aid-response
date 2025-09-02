@@ -64,6 +64,24 @@ export type Database = {
           },
         ]
       }
+      app_state: {
+        Row: {
+          session_id: string
+          state: Json
+          updated_at: string | null
+        }
+        Insert: {
+          session_id: string
+          state?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          session_id?: string
+          state?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           after_data: Json | null

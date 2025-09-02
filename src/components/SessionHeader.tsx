@@ -1,78 +1,134 @@
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { NetworkStatus } from "./NetworkStatus";
-import { Share2, Users, Settings } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
+  Download, 
+  Upload, 
+  RotateCcw, 
+  Menu,
+  Save
+} from "lucide-react";
+import { useCrisisState } from "@/hooks/useCrisisState";
+import { exportJSON, importJSON, resetSession, saveState } from "@/lib/stateStore";
 import { toast } from "sonner";
-import type { Session, Participant } from "@/types/database";
 
-interface SessionHeaderProps {
-  session: Session;
-  participants: Participant[];
-  onSettings?: () => void;
-}
+export function SessionHeader() {
+  const { state, sessionId, updateState } = useCrisisState();
+  const [isResetting, setIsResetting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-const SEVERITY_COLORS = {
-  low: "bg-green-500",
-  moderate: "bg-yellow-500", 
-  high: "bg-orange-500",
-  critical: "bg-red-500"
-};
+  const handleExport = () => {
+    try {
+      exportJSON(state);
+      toast.success("Session exportée avec succès");
+    } catch (error) {
+      toast.error("Erreur lors de l'export");
+    }
+  };
 
-const SEVERITY_LABELS = {
-  low: "Faible",
-  moderate: "Modéré",
-  high: "Élevé", 
-  critical: "Critique"
-};
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-export function SessionHeader({ session, participants, onSettings }: SessionHeaderProps) {
-  const handleShare = () => {
-    const url = `${window.location.origin}/s/${session.id}`;
-    navigator.clipboard.writeText(url);
-    toast.success("Lien de session copié");
+    try {
+      const importedState = await importJSON(file);
+      updateState(() => importedState);
+      toast.success("Session importée avec succès");
+    } catch (error) {
+      toast.error("Erreur lors de l'import");
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleReset = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir réinitialiser la session ? Toutes les données seront perdues.")) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await resetSession(sessionId);
+      // Reload the page to reinitialize everything
+      window.location.reload();
+    } catch (error) {
+      console.error('Error resetting session:', error);
+      toast.error("Erreur lors de la réinitialisation");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await saveState(sessionId, state);
+      toast.success("Session sauvegardée");
+    } catch (error) {
+      toast.error("Erreur lors de la sauvegarde");
+    }
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center justify-between px-6">
+    <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-14 items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">{session.title}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge 
-                variant="outline" 
-                className={`${SEVERITY_COLORS[session.severity]} text-white border-transparent`}
-              >
-                {SEVERITY_LABELS[session.severity]}
-              </Badge>
-              <span>•</span>
-              <span className="capitalize">{session.mode}</span>
-            </div>
+          <h1 className="text-lg font-semibold">{state.meta.title}</h1>
+          <div className="text-sm text-muted-foreground">
+            {state.meta.mode === 'real' ? '🔴 Mode Réel' : '🟡 Mode Exercice'} 
+            - {state.meta.severity}
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <NetworkStatus />
-          
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {participants.length} participant{participants.length > 1 ? 's' : ''}
-            </span>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={handleShare}>
-            <Share2 className="h-4 w-4 mr-2" />
-            Partager
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSave}>
+            <Save className="w-4 h-4 mr-2" />
+            Sauvegarder
           </Button>
-
-          {onSettings && (
-            <Button variant="outline" size="sm" onClick={onSettings}>
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Menu className="w-4 h-4 mr-2" />
+                Session
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="w-4 h-4 mr-2" />
+                Exporter JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-2" />
+                Importer JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleReset}
+                disabled={isResetting}
+                className="text-destructive focus:text-destructive"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {isResetting ? 'Réinitialisation...' : 'Réinitialiser Session'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
         </div>
       </div>
-    </header>
+    </div>
   );
 }
