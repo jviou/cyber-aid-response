@@ -110,10 +110,13 @@ export async function deleteFile(id: string): Promise<void> {
   }
 }
 
-export function getFileUrl(blobKey: string): string {
-  const { data } = supabase.storage
+export async function getFileUrl(blobKey: string): Promise<string> {
+  const { data, error } = await supabase.storage
     .from('resources')
-    .getPublicUrl(blobKey);
-  
-  return data.publicUrl;
+    .createSignedUrl(blobKey, 3600);
+  if (error || !data?.signedUrl) {
+    // Fallback to public URL if signing fails
+    return supabase.storage.from('resources').getPublicUrl(blobKey).data.publicUrl;
+  }
+  return data.signedUrl;
 }

@@ -102,7 +102,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
 
   const handleDownload = async (resource: ResourceFile) => {
     try {
-      const url = getFileUrl(resource.blob_key || '');
+      const url = await getFileUrl(resource.blob_key || '');
       const a = document.createElement('a');
       a.href = url;
       a.download = resource.title;
