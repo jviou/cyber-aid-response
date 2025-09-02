@@ -218,7 +218,6 @@ export function SessionPage() {
                 element={
                   <PhasesPage 
                     sessionId={sessionId!}
-                    phases={phases}
                   />
                 } 
               />

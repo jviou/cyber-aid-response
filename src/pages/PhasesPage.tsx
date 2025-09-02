@@ -5,23 +5,31 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { PhaseCard } from "@/components/PhaseCard";
 import { Target, TrendingUp } from "lucide-react";
+import { usePhasesProgress } from "@/hooks/usePhasesProgress";
 
 interface PhasesPageProps {
   sessionId: string;
-  phases: Array<{
-    id: string;
-    code: string;
-    title: string;
-    subtitle?: string;
-    order_index: number;
-  }>;
 }
 
-export function PhasesPage({ sessionId, phases }: PhasesPageProps) {
+export function PhasesPage({ sessionId }: PhasesPageProps) {
   const navigate = useNavigate();
+  const { phases, globalProgress, loading, error } = usePhasesProgress(sessionId);
 
-  // Calculate overall progress (mock for now)
-  const overallProgress = 25;
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Chargement des phases...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-destructive">Erreur lors du chargement des phases: {error}</p>
+      </div>
+    );
+  }
 
   const handlePhaseSelect = (phaseId: string, phaseIndex: number) => {
     navigate(`/s/${sessionId}/phases/${phaseIndex}`);
@@ -39,7 +47,7 @@ export function PhasesPage({ sessionId, phases }: PhasesPageProps) {
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold text-primary">
-            {overallProgress}%
+            {globalProgress}%
           </div>
           <p className="text-sm text-muted-foreground">
             Progression globale
@@ -59,22 +67,28 @@ export function PhasesPage({ sessionId, phases }: PhasesPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Progress value={overallProgress} className="h-4 mb-4" />
+          <Progress value={globalProgress} className="h-4 mb-4" />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-primary">4</div>
+              <div className="text-2xl font-bold text-primary">{phases.length}</div>
               <div className="text-sm text-muted-foreground">Phases totales</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">1</div>
+              <div className="text-2xl font-bold text-green-600">
+                {phases.filter(p => p.overall_progress === 100).length}
+              </div>
               <div className="text-sm text-muted-foreground">Terminées</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">2</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {phases.filter(p => p.overall_progress > 0 && p.overall_progress < 100).length}
+              </div>
               <div className="text-sm text-muted-foreground">En cours</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-600">1</div>
+              <div className="text-2xl font-bold text-gray-600">
+                {phases.filter(p => p.overall_progress === 0).length}
+              </div>
               <div className="text-sm text-muted-foreground">À venir</div>
             </div>
           </div>
@@ -85,21 +99,14 @@ export function PhasesPage({ sessionId, phases }: PhasesPageProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {phases
           .sort((a, b) => a.order_index - b.order_index)
-          .map((phase) => {
-            // Mock progress for each phase
-            const phaseProgress = phase.order_index === 1 ? 100 : 
-                                phase.order_index === 2 ? 60 : 
-                                phase.order_index === 3 ? 30 : 0;
-            
-            return (
-              <PhaseCard
-                key={phase.id}
-                phase={phase}
-                progress={phaseProgress}
-                onSelect={() => handlePhaseSelect(phase.id, phase.order_index)}
-              />
-            );
-          })}
+          .map((phase) => (
+            <PhaseCard
+              key={phase.id}
+              phase={phase}
+              progress={phase.overall_progress}
+              onSelect={() => handlePhaseSelect(phase.id, phase.order_index)}
+            />
+          ))}
       </div>
 
       {phases.length === 0 && (

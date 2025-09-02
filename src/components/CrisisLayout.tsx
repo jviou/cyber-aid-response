@@ -272,9 +272,7 @@ export function CrisisLayout() {
               } />
               <Route path="/resources" element={
                 <ResourcesPage 
-                  resources={[]}
-                  onCreateResource={handleCreateResource}
-                  onDeleteResource={handleDeleteResource}
+                  sessionId={sessionId}
                 />
               } />
               <Route path="*" element={<NotFound />} />

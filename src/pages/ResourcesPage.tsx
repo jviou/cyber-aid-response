@@ -1,124 +1,142 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Upload, ExternalLink, FileText, Link as LinkIcon } from "lucide-react";
-import { Resource } from "@/types/crisis";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Trash2, Upload, ExternalLink, FileText, Link as LinkIcon, Download } from "lucide-react";
+import { uploadFile, listFiles, deleteFile, getFileUrl, ResourceFile } from "@/lib/resources";
 import { toast } from "sonner";
 
 interface ResourcesPageProps {
-  resources: Resource[];
-  onCreateResource: (resourceData: Omit<Resource, 'id'>) => void;
-  onDeleteResource: (id: string) => void;
+  sessionId: string;
 }
 
-export function ResourcesPage({ resources, onCreateResource, onDeleteResource }: ResourcesPageProps) {
+export function ResourcesPage({ sessionId }: ResourcesPageProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [resources, setResources] = useState<ResourceFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [newResource, setNewResource] = useState({
-    title: "",
     url: "",
-    note: "",
-    tags: [] as string[],
-    file: null as File | null
+    files: [] as File[]
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddResource = () => {
-    if (!newResource.title) {
-      toast.error("Le titre est requis");
+  const loadResources = async () => {
+    try {
+      setLoading(true);
+      const files = await listFiles(sessionId);
+      setResources(files);
+    } catch (error) {
+      console.error('Error loading resources:', error);
+      toast.error("Erreur lors du chargement des fichiers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadResources();
+  }, [sessionId]);
+
+  const handleAddFiles = async () => {
+    if (newResource.files.length === 0 && !newResource.url) {
+      toast.error("Sélectionnez des fichiers ou ajoutez une URL");
       return;
     }
 
-    // Handle file upload (in a real app, you'd upload to a server)
-    let fileUrl = newResource.url;
-    if (newResource.file) {
-      // For demo purposes, create a blob URL
-      fileUrl = URL.createObjectURL(newResource.file);
+    try {
+      // Upload files
+      for (const file of newResource.files) {
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+        
+        const uploadedFile = await uploadFile(file, sessionId);
+        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+        
+        // Add to local state immediately (optimistic UI)
+        setResources(prev => [uploadedFile, ...prev]);
+        toast.success(`${file.name} ajouté avec succès`);
+      }
+
+      // Clear upload progress
+      setTimeout(() => {
+        setUploadProgress({});
+      }, 2000);
+
+      setNewResource({
+        url: "",
+        files: []
+      });
+      setIsAddOpen(false);
+      
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast.error("Erreur lors de l'upload");
+      setUploadProgress({});
     }
-
-    onCreateResource({
-      title: newResource.title,
-      url: fileUrl,
-      note: newResource.note,
-      tags: newResource.tags.filter(tag => tag.trim() !== "")
-    });
-
-    setNewResource({
-      title: "",
-      url: "",
-      note: "",
-      tags: [],
-      file: null
-    });
-    setIsAddOpen(false);
-    
-    toast.success("Ressource ajoutée");
   };
 
-  const handleDeleteResource = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette ressource ?")) {
-      onDeleteResource(id);
-      toast.success("Ressource supprimée");
+  const handleDeleteResource = async (id: string) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer ce fichier ?")) {
+      try {
+        await deleteFile(id);
+        setResources(prev => prev.filter(r => r.id !== id));
+        toast.success("Fichier supprimé");
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        toast.error("Erreur lors de la suppression");
+      }
     }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setNewResource({
-        ...newResource,
-        file,
-        title: newResource.title || file.name
-      });
-    }
-  };
-
-  const handleAddTag = () => {
+    const selectedFiles = Array.from(event.target.files || []);
     setNewResource({
       ...newResource,
-      tags: [...newResource.tags, ""]
+      files: [...newResource.files, ...selectedFiles]
     });
   };
 
-  const handleUpdateTag = (index: number, value: string) => {
-    const updatedTags = [...newResource.tags];
-    updatedTags[index] = value;
-    setNewResource({
-      ...newResource,
-      tags: updatedTags
-    });
-  };
-
-  const handleRemoveTag = (index: number) => {
-    setNewResource({
-      ...newResource,
-      tags: newResource.tags.filter((_, i) => i !== index)
-    });
-  };
-
-  const getResourceIcon = (resource: Resource) => {
-    if (resource.url?.startsWith('blob:')) {
-      return <FileText className="w-5 h-5" />;
-    } else if (resource.url) {
-      return <ExternalLink className="w-5 h-5" />;
-    } else {
-      return <LinkIcon className="w-5 h-5" />;
+  const handleDownload = async (resource: ResourceFile) => {
+    try {
+      const url = getFileUrl(resource.path);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = resource.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error("Erreur lors du téléchargement");
     }
   };
 
-  const handleResourceClick = (resource: Resource) => {
-    if (resource.url) {
-      if (resource.url.startsWith('blob:')) {
-        // For blob URLs, open in new tab
-        window.open(resource.url, '_blank');
-      } else {
-        // For external URLs
-        window.open(resource.url, '_blank', 'noopener,noreferrer');
-      }
-    }
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return 'N/A';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const removeFile = (index: number) => {
+    setNewResource({
+      ...newResource,
+      files: newResource.files.filter((_, i) => i !== index)
+    });
   };
 
   return (
@@ -135,99 +153,98 @@ export function ResourcesPage({ resources, onCreateResource, onDeleteResource }:
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Ajouter une Ressource
+              Ajouter des fichiers
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-xl">
             <DialogHeader>
-              <DialogTitle>Nouvelle Ressource</DialogTitle>
+              <DialogTitle>Ajouter des fichiers</DialogTitle>
               <DialogDescription>
-                Ajouter un document, un lien ou un fichier
+                Téléchargez des documents ou ajoutez des liens
               </DialogDescription>
             </DialogHeader>
             
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label>Titre</Label>
-                <Input
-                  value={newResource.title}
-                  onChange={(e) => setNewResource({...newResource, title: e.target.value})}
-                  placeholder="Nom de la ressource"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>Fichier ou URL</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={newResource.url}
-                    onChange={(e) => setNewResource({...newResource, url: e.target.value})}
-                    placeholder="https://... ou laissez vide pour un fichier"
-                  />
+                <Label>Fichiers</Label>
+                <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Glissez-déposez vos fichiers ici ou cliquez pour parcourir
+                  </p>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Fichier
+                    Parcourir les fichiers
                   </Button>
                 </div>
                 <input
                   ref={fileInputRef}
                   type="file"
+                  multiple
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                {newResource.file && (
-                  <p className="text-sm text-muted-foreground">
-                    Fichier sélectionné: {newResource.file.name}
-                  </p>
+                
+                {/* Selected files */}
+                {newResource.files.length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    <Label className="text-sm">Fichiers sélectionnés:</Label>
+                    {newResource.files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          <span className="text-sm">{file.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({formatFileSize(file.size)})
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload progress */}
+                {Object.keys(uploadProgress).length > 0 && (
+                  <div className="space-y-2 mt-3">
+                    {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                      <div key={fileName} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{fileName}</span>
+                          <span>{progress}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
               
               <div className="grid gap-2">
-                <Label>Note</Label>
-                <Textarea
-                  value={newResource.note}
-                  onChange={(e) => setNewResource({...newResource, note: e.target.value})}
-                  placeholder="Description ou note sur cette ressource"
-                  rows={3}
+                <Label>Ou ajouter un lien</Label>
+                <Input
+                  value={newResource.url}
+                  onChange={(e) => setNewResource({...newResource, url: e.target.value})}
+                  placeholder="https://exemple.com/document.pdf"
                 />
               </div>
               
-              <div className="grid gap-2">
-                <Label>Tags</Label>
-                {newResource.tags.map((tag, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      value={tag}
-                      onChange={(e) => handleUpdateTag(index, e.target.value)}
-                      placeholder={`Tag ${index + 1}`}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveTag(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddTag}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ajouter un tag
-                </Button>
-              </div>
-              
-              <Button onClick={handleAddResource} className="w-full">
-                Ajouter la Ressource
+              <Button 
+                onClick={handleAddFiles} 
+                className="w-full"
+                disabled={newResource.files.length === 0 && !newResource.url}
+              >
+                Ajouter {newResource.files.length > 0 ? `${newResource.files.length} fichier(s)` : 'le lien'}
               </Button>
             </div>
           </DialogContent>
@@ -249,75 +266,63 @@ export function ResourcesPage({ resources, onCreateResource, onDeleteResource }:
             <CardTitle className="text-sm font-medium">Fichiers</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {resources.filter(r => r.url?.startsWith('blob:')).length}
-            </div>
+            <div className="text-2xl font-bold">{resources.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Liens</CardTitle>
+            <CardTitle className="text-sm font-medium">Taille totale</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {resources.filter(r => r.url && !r.url.startsWith('blob:')).length}
+              {formatFileSize(resources.reduce((acc, r) => acc + (r.size || 0), 0))}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Resources Grid */}
-      {resources.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Resources List */}
+      {loading ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <p className="text-muted-foreground">Chargement des fichiers...</p>
+          </CardContent>
+        </Card>
+      ) : resources.length > 0 ? (
+        <div className="space-y-3">
           {resources.map((resource) => (
             <Card key={resource.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3 flex-1">
-                    {getResourceIcon(resource)}
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <FileText className="w-8 h-8 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base line-clamp-1">{resource.title}</CardTitle>
-                      {resource.note && (
-                        <CardDescription className="line-clamp-2 mt-1">
-                          {resource.note}
-                        </CardDescription>
-                      )}
+                      <h4 className="font-medium truncate">{resource.name}</h4>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span>{formatFileSize(resource.size)}</span>
+                        <span>{formatDate(resource.uploaded_at)}</span>
+                      </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteResource(resource.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {resource.tags && resource.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {resource.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="text-xs bg-muted px-2 py-1 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(resource)}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      Télécharger
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteResource(resource.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                )}
-                {resource.url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleResourceClick(resource)}
-                    className="w-full"
-                  >
-                    {resource.url.startsWith('blob:') ? 'Ouvrir le fichier' : 'Ouvrir le lien'}
-                    <ExternalLink className="w-3 h-3 ml-2" />
-                  </Button>
-                )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -327,7 +332,7 @@ export function ResourcesPage({ resources, onCreateResource, onDeleteResource }:
           <CardContent className="text-center py-8">
             <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
-              Aucune ressource ajoutée pour l'instant
+              Aucun fichier pour cette session
             </p>
           </CardContent>
         </Card>

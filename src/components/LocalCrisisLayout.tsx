@@ -154,9 +154,7 @@ export function LocalCrisisLayout({ session, onExport }: LocalCrisisLayoutProps)
                 path="/resources" 
                 element={
                   <ResourcesPage 
-                    resources={session.resources}
-                    onCreateResource={handleCreateResource}
-                    onDeleteResource={handleDeleteResource}
+                    sessionId={session.id}
                   />
                 } 
               />

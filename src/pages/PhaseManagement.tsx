@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, Settings, Clock } from "lucide-react";
-import { useLocalPhases } from "@/hooks/useLocalPhases";
+import { usePhases } from "@/hooks/usePhases";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ interface PhaseManagementProps {
 
 export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   const { phaseId } = useParams<{ phaseId: string }>();
-  const { phases, loading, error, updateChecklistItem } = useLocalPhases(sessionId);
+  const { phases, loading, error, updateChecklistItem } = usePhases(sessionId);
   
   const phaseIndex = phaseId ? parseInt(phaseId) - 1 : 0;
   const phase = phases[phaseIndex];
@@ -58,21 +58,25 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   };
 
   const getPhaseProgress = (phaseData: any) => {
-    const totalItems = phaseData.checklist.strategic.length + phaseData.checklist.operational.length;
-    const completedItems = phaseData.checklist.strategic.filter((item: any) => item.status === 'done').length + 
-                          phaseData.checklist.operational.filter((item: any) => item.status === 'done').length;
+    const strategicItems = phaseData.strategic_checklist || [];
+    const operationalItems = phaseData.operational_checklist || [];
+    const totalItems = strategicItems.length + operationalItems.length;
+    const completedItems = strategicItems.filter((item: any) => item.completed).length + 
+                          operationalItems.filter((item: any) => item.completed).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
 
   const getStrategicProgress = (phaseData: any) => {
-    const totalItems = phaseData.checklist.strategic.length;
-    const completedItems = phaseData.checklist.strategic.filter((item: any) => item.status === 'done').length;
+    const strategicItems = phaseData.strategic_checklist || [];
+    const totalItems = strategicItems.length;
+    const completedItems = strategicItems.filter((item: any) => item.completed).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
 
   const getOperationalProgress = (phaseData: any) => {
-    const totalItems = phaseData.checklist.operational.length;
-    const completedItems = phaseData.checklist.operational.filter((item: any) => item.status === 'done').length;
+    const operationalItems = phaseData.operational_checklist || [];
+    const totalItems = operationalItems.length;
+    const completedItems = operationalItems.filter((item: any) => item.completed).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
 
@@ -88,8 +92,8 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
           <div className="text-right">
             <div className="text-4xl font-bold">{Math.round(getPhaseProgress(phase))}%</div>
             <div className="text-sm text-blue-200">
-              {phase.checklist.strategic.filter((item: any) => item.status === 'done').length + 
-               phase.checklist.operational.filter((item: any) => item.status === 'done').length} / {phase.checklist.strategic.length + phase.checklist.operational.length} tâches
+              {(phase.strategic_checklist || []).filter((item: any) => item.completed).length + 
+               (phase.operational_checklist || []).filter((item: any) => item.completed).length} / {(phase.strategic_checklist || []).length + (phase.operational_checklist || []).length} tâches
             </div>
           </div>
         </div>
@@ -122,17 +126,17 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {phase.checklist.strategic.filter((item: any) => item.status === 'done').length} / {phase.checklist.strategic.length} terminées
+              {(phase.strategic_checklist || []).filter((item: any) => item.completed).length} / {(phase.strategic_checklist || []).length} terminées
             </p>
           </div>
           
           <div className="divide-y divide-gray-200">
-            {phase.checklist.strategic.map((item: any) => (
+            {(phase.strategic_checklist || []).map((item: any) => (
               <div key={item.id} className="p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
                     id={`strategic-${item.id}`}
-                    checked={item.status === 'done'}
+                    checked={item.completed}
                     onCheckedChange={(checked) => 
                       updateChecklistItem(phase.id, 'strategic', item.id, checked as boolean)
                     }
@@ -193,17 +197,17 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {phase.checklist.operational.filter((item: any) => item.status === 'done').length} / {phase.checklist.operational.length} terminées
+              {(phase.operational_checklist || []).filter((item: any) => item.completed).length} / {(phase.operational_checklist || []).length} terminées
             </p>
           </div>
           
           <div className="divide-y divide-gray-200">
-            {phase.checklist.operational.map((item: any) => (
+            {(phase.operational_checklist || []).map((item: any) => (
               <div key={item.id} className="p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
                     id={`operational-${item.id}`}
-                    checked={item.status === 'done'}
+                    checked={item.completed}
                     onCheckedChange={(checked) => 
                       updateChecklistItem(phase.id, 'operational', item.id, checked as boolean)
                     }

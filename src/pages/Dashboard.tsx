@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,15 +33,23 @@ export function Dashboard() {
   const totalDecisions = state.decisions.length;
   const totalCommunications = state.communications.length;
   
-  // Calculate phases progress
-  const totalPhaseItems = state.phases.reduce((acc, phase) => 
-    acc + phase.strategic.length + phase.operational.length, 0
-  );
-  const completedPhaseItems = state.phases.reduce((acc, phase) => 
-    acc + phase.strategic.filter(item => item.checked).length + 
-    phase.operational.filter(item => item.checked).length, 0
-  );
-  const phasesProgress = totalPhaseItems > 0 ? (completedPhaseItems / totalPhaseItems) * 100 : 0;
+  const phasesProgress = useMemo(() => {
+    if (!state.phases || state.phases.length === 0) return 0;
+    
+    const totalItems = state.phases.reduce((acc, phase) => {
+      const strategicItems = phase.strategic?.length || 0;
+      const operationalItems = phase.operational?.length || 0;
+      return acc + strategicItems + operationalItems;
+    }, 0);
+    
+    const completedItems = state.phases.reduce((acc, phase) => {
+      const strategicCompleted = phase.strategic?.filter(item => item.checked).length || 0;
+      const operationalCompleted = phase.operational?.filter(item => item.checked).length || 0;
+      return acc + strategicCompleted + operationalCompleted;
+    }, 0);
+    
+    return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+  }, [state.phases]);
   
   // Recent journal events
   const recentEvents = state.journal.slice(0, 3);
