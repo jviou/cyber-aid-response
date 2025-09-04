@@ -73,11 +73,26 @@ export function Dashboard() {
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   }, [state.phases]);
   
-  // Recent journal events
-  const recentEvents = state.journal.slice(0, 3);
-  
-  // Recent RIDA items
-  const recentRida = state.decisions.slice(-3).reverse();
+  // Recent events including RIDA items
+  const allRecentItems = [
+    ...state.journal.map(event => ({
+      id: event.id,
+      type: 'journal' as const,
+      title: event.title,
+      category: event.category,
+      date: event.at,
+      details: event.details
+    })),
+    ...state.decisions.map(rida => ({
+      id: rida.id,
+      type: 'rida' as const,
+      title: rida.title,
+      category: 'RIDA',
+      date: rida.decidedAt,
+      details: rida.rationale,
+      owner: rida.owner
+    }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
   const handleAddContact = () => {
     if (!newContact.name.trim()) {
@@ -155,7 +170,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contacts clés */}
         <Card>
           <CardHeader>
@@ -247,71 +262,42 @@ export function Dashboard() {
             <CardTitle>Derniers Événements</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentEvents.length > 0 ? (
+            {allRecentItems.length > 0 ? (
               <div className="space-y-3">
-                {recentEvents.map((event) => (
-                  <div key={event.id} className="border-l-4 border-primary pl-4 pb-3">
+                {allRecentItems.map((item) => (
+                  <div key={`${item.type}-${item.id}`} className={`border-l-4 pl-4 pb-3 ${
+                    item.type === 'rida' ? 'border-amber-500' : 'border-primary'
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{event.category}</Badge>
+                      {item.type === 'rida' ? (
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                          <FileText className="w-3 h-3 mr-1" />
+                          {item.category}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">{item.category}</Badge>
+                      )}
                       <span className="text-sm text-muted-foreground">
-                        {new Date(event.at).toLocaleString('fr-FR')}
+                        {new Date(item.date).toLocaleString('fr-FR')}
                       </span>
                     </div>
-                    <h4 className="font-medium mt-1">{event.title}</h4>
-                    {event.details && (
-                      <p className="text-sm text-muted-foreground mt-1">{event.details}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">Aucun événement enregistré</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Résumé RIDA */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Gavel className="w-5 h-5 text-primary" />
-              <CardTitle>Résumé RIDA</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {recentRida.length > 0 ? (
-              <div className="space-y-3">
-                {recentRida.map((rida) => (
-                  <div key={rida.id} className="border-l-4 border-amber-500 pl-4 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                        <FileText className="w-3 h-3 mr-1" />
-                        RIDA
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(rida.decidedAt).toLocaleString('fr-FR')}
-                      </span>
-                    </div>
-                    <h4 className="font-medium mt-1">{rida.title}</h4>
-                    {rida.rationale && (
+                    <h4 className="font-medium mt-1">{item.title}</h4>
+                    {item.details && (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {rida.rationale}
+                        {item.details}
                       </p>
                     )}
-                    {rida.owner && (
+                    {item.type === 'rida' && item.owner && (
                       <div className="flex items-center gap-1 mt-2">
                         <span className="text-xs text-muted-foreground">Assigné à:</span>
-                        <span className="text-xs font-medium">{rida.owner}</span>
+                        <span className="text-xs font-medium">{item.owner}</span>
                       </div>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-4">
-                <Gavel className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">Aucun élément RIDA enregistré</p>
-              </div>
+              <p className="text-muted-foreground">Aucun événement enregistré</p>
             )}
           </CardContent>
         </Card>
