@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,16 @@ import {
   MessageSquare,
   Target,
   Plus,
-  Trash2
+  Trash2,
+  FileText,
+  Gavel
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function Dashboard() {
-  const { state, updateState } = useCrisisState();
+  const { state, updateState, sessionId } = useCrisisState();
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [newContact, setNewContact] = useState({
     name: "",
@@ -26,6 +29,27 @@ export function Dashboard() {
     email: "",
     phone: ""
   });
+
+  // Real-time updates
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'crisis_sessions'
+      }, () => {
+        // Refresh crisis state when data changes
+        window.location.reload(); // Simple refresh for now
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [sessionId]);
 
   // Calculate KPIs
   const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
@@ -51,6 +75,9 @@ export function Dashboard() {
   
   // Recent journal events
   const recentEvents = state.journal.slice(0, 3);
+  
+  // Recent RIDA items
+  const recentRida = state.decisions.slice(-3).reverse();
   
   const handleAddContact = () => {
     if (!newContact.name.trim()) {
@@ -128,7 +155,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contacts clés */}
         <Card>
           <CardHeader>
@@ -239,6 +266,52 @@ export function Dashboard() {
               </div>
             ) : (
               <p className="text-muted-foreground">Aucun événement enregistré</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Résumé RIDA */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gavel className="w-5 h-5 text-primary" />
+              <CardTitle>Résumé RIDA</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentRida.length > 0 ? (
+              <div className="space-y-3">
+                {recentRida.map((rida) => (
+                  <div key={rida.id} className="border-l-4 border-amber-500 pl-4 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        <FileText className="w-3 h-3 mr-1" />
+                        RIDA
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(rida.decidedAt).toLocaleString('fr-FR')}
+                      </span>
+                    </div>
+                    <h4 className="font-medium mt-1">{rida.title}</h4>
+                    {rida.rationale && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {rida.rationale}
+                      </p>
+                    )}
+                    {rida.owner && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <span className="text-xs text-muted-foreground">Assigné à:</span>
+                        <span className="text-xs font-medium">{rida.owner}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <Gavel className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">Aucun élément RIDA enregistré</p>
+              </div>
             )}
           </CardContent>
         </Card>
