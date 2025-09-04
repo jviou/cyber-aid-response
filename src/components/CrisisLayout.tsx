@@ -221,32 +221,6 @@ export function CrisisLayout() {
           <main className="flex-1 p-6 overflow-auto">
             <Routes>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/journal" element={
-                <JournalPage 
-                  session={legacySession} 
-                  onUpdateSession={updateLegacySession}
-                />
-              } />
-              <Route path="/actions" element={
-                <ActionsBoard 
-                  actions={state.actions.map(action => ({
-                    id: action.id,
-                    title: action.title,
-                    description: action.description,
-                    owner: action.owner,
-                    priority: 'med' as const,
-                    status: action.status as 'todo' | 'doing' | 'done',
-                    due_at: action.dueAt,
-                    created_at: action.createdAt,
-                    updated_at: action.createdAt,
-                    session_id: sessionId,
-                    client_op_id: undefined
-                  }))}
-                  onCreateAction={handleCreateAction}
-                  onUpdateAction={handleUpdateAction}
-                  onDeleteAction={handleDeleteAction}
-                />
-              } />
               <Route path="/communications" element={
                 <CommunicationsPage 
                   session={legacySession} 
@@ -256,7 +230,7 @@ export function CrisisLayout() {
               <Route path="/phases/:phaseId" element={
                 <PhaseManagement sessionId={sessionId} />
               } />
-              <Route path="/decisions" element={
+              <Route path="/rida" element={
                 <DecisionsPage 
                   decisions={state.decisions.map(decision => ({
                     id: decision.id,

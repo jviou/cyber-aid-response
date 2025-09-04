@@ -28,9 +28,7 @@ export function Dashboard() {
   });
 
   // Calculate KPIs
-  const totalActions = state.actions.length;
-  const completedActions = state.actions.filter(a => a.status === 'done').length;
-  const totalDecisions = state.decisions.length;
+  const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
   const totalCommunications = state.communications.length;
   
   const phasesProgress = useMemo(() => {
@@ -95,28 +93,15 @@ export function Dashboard() {
       </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Actions</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{completedActions}/{totalActions}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0}% terminées
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Décisions</CardTitle>
+            <CardTitle className="text-sm font-medium">Éléments RIDA</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalDecisions}</div>
-            <p className="text-xs text-muted-foreground">Prises au total</p>
+            <div className="text-2xl font-bold">{totalRidaItems}</div>
+            <p className="text-xs text-muted-foreground">Informations, Décisions & Actions</p>
           </CardContent>
         </Card>
 

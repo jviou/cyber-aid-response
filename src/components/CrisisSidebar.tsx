@@ -34,9 +34,7 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
 
   const mainNavItems = [
     { title: "Accueil", url: "dashboard", icon: Home },
-    { title: "Journal", url: "journal", icon: ScrollText },
-    { title: "Actions", url: "actions", icon: CheckSquare },
-    { title: "Décisions", url: "decisions", icon: Gavel },
+    { title: "RIDA", url: "rida", icon: Gavel },
     { title: "Communications", url: "communications", icon: MessageSquare },
     { title: "Ressources", url: "resources", icon: FileText },
     { title: "Glossaire", url: "glossary", icon: Book },
