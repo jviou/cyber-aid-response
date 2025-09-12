@@ -21,9 +21,11 @@ export type Rida = {
   id?: string
   session_id?: string
   title: string
-  status?: 'nouveau' | 'en_cours' | 'clos'
+  type?: 'I' | 'D' | 'A'
+  status?: string
   owner?: string
   notes?: string
+  dueDate?: string
   created_at?: string
   updated_at?: string
 }

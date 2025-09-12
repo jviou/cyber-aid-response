@@ -44,9 +44,11 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
   
   const [newRidaItem, setNewRidaItem] = useState({
     title: "",
-    status: "nouveau" as "nouveau" | "en_cours" | "clos",
+    type: "I" as "I" | "D" | "A",
+    notes: "",
     owner: "",
-    notes: ""
+    status: "À initier" as string,
+    dueDate: ""
   });
 
   // Load RIDA items from database
@@ -99,9 +101,11 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
       
       setNewRidaItem({
         title: "",
-        status: "nouveau",
+        type: "I",
+        notes: "",
         owner: "",
-        notes: ""
+        status: "À initier",
+        dueDate: ""
       });
       setIsAddOpen(false);
       setIsUnsaved(false);
@@ -204,27 +208,49 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                   </div>
                 )}
                 
-                <div className="grid gap-2">
-                  <Label>Titre *</Label>
-                  <Input
-                    value={newRidaItem.title}
-                    onChange={(e) => {
-                      setNewRidaItem({...newRidaItem, title: e.target.value});
-                      setIsUnsaved(true);
-                    }}
-                    placeholder="Titre de l'élément RIDA..."
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Sujet</Label>
+                    <Input
+                      value={newRidaItem.title}
+                      onChange={(e) => {
+                        setNewRidaItem({...newRidaItem, title: e.target.value});
+                        setIsUnsaved(true);
+                      }}
+                      placeholder="Investigations, Messagerie, etc."
+                    />
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label>Type</Label>
+                    <Select 
+                      value={newRidaItem.type} 
+                      onValueChange={(value: "I" | "D" | "A") => {
+                        setNewRidaItem({...newRidaItem, type: value});
+                        setIsUnsaved(true);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="I">I - Information</SelectItem>
+                        <SelectItem value="D">D - Décision</SelectItem>
+                        <SelectItem value="A">A - Action</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label>Notes</Label>
+                  <Label>Description</Label>
                   <Textarea
                     value={newRidaItem.notes}
                     onChange={(e) => {
                       setNewRidaItem({...newRidaItem, notes: e.target.value});
                       setIsUnsaved(true);
                     }}
-                    placeholder="Notes détaillées..."
+                    placeholder="Description détaillée..."
                     rows={3}
                   />
                 </div>
@@ -246,7 +272,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                     <Label>État</Label>
                     <Select 
                       value={newRidaItem.status} 
-                      onValueChange={(value: "nouveau" | "en_cours" | "clos") => {
+                      onValueChange={(value: string) => {
                         setNewRidaItem({...newRidaItem, status: value});
                         setIsUnsaved(true);
                       }}
@@ -254,16 +280,33 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nouveau">Nouveau</SelectItem>
-                        <SelectItem value="en_cours">En cours</SelectItem>
-                        <SelectItem value="clos">Clos</SelectItem>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="À initier">À initier</SelectItem>
+                        <SelectItem value="En cours">En cours</SelectItem>
+                        <SelectItem value="En pause">En pause</SelectItem>
+                        <SelectItem value="En retard">En retard</SelectItem>
+                        <SelectItem value="Bloqué">Bloqué</SelectItem>
+                        <SelectItem value="Terminé">Terminé</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
                 
-                <Button 
+                {newRidaItem.type === "A" && (
+                  <div className="grid gap-2">
+                    <Label>Échéance de l'action</Label>
+                    <Input
+                      type="date"
+                      value={newRidaItem.dueDate}
+                      onChange={(e) => {
+                        setNewRidaItem({...newRidaItem, dueDate: e.target.value});
+                        setIsUnsaved(true);
+                      }}
+                    />
+                  </div>
+                )}
+                
+                 <Button 
                   onClick={handleSave} 
                   className="w-full"
                   disabled={isSaving}
@@ -274,7 +317,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                       Enregistrement...
                     </>
                   ) : (
-                    'Sauvegarder'
+                    "Ajouter l'élément"
                   )}
                 </Button>
               </div>
@@ -299,55 +342,97 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
               <Table>
                 <TableHeader>
                   <TableRow className="bg-purple-100">
-                    <TableHead className="w-32">Date</TableHead>
-                    <TableHead>Titre</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead className="w-20">Date</TableHead>
+                    <TableHead className="w-20">Heure</TableHead>
+                    <TableHead className="w-40">Sujet</TableHead>
+                    <TableHead className="w-12 text-center">I</TableHead>
+                    <TableHead className="w-12 text-center">D</TableHead>
+                    <TableHead className="w-12 text-center">A</TableHead>
+                    <TableHead className="w-32">Échéance de l'action</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead className="w-24">Porteur</TableHead>
-                    <TableHead className="w-24">État</TableHead>
+                    <TableHead className="w-32">État</TableHead>
                     <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ridaItems.map((item) => (
-                    <TableRow 
-                      key={item.id} 
-                      className="hover:bg-gray-50"
-                    >
-                      <TableCell className="font-medium">
-                        {new Date(item.created_at).toLocaleDateString('fr-FR')}
-                      </TableCell>
-                      <TableCell className="font-medium">{item.title}</TableCell>
-                      <TableCell className="max-w-md">
-                        <p className="text-sm line-clamp-2">{item.notes || '-'}</p>
-                      </TableCell>
-                      <TableCell>{item.owner || '-'}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={item.status}
-                          onValueChange={(value: string) => updateItemStatus(item.id, value)}
-                        >
-                          <SelectTrigger className={`w-full text-xs ${getStatusColor(item.status)}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="nouveau">Nouveau</SelectItem>
-                            <SelectItem value="en_cours">En cours</SelectItem>
-                            <SelectItem value="clos">Clos</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteRidaItem(item.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {ridaItems.map((item) => {
+                    const createdDate = new Date(item.created_at);
+                    const itemType = (item as any).type || 'I';
+                    return (
+                      <TableRow 
+                        key={item.id} 
+                        className="hover:bg-gray-50"
+                      >
+                        <TableCell className="font-medium">
+                          {createdDate.toLocaleDateString('fr-FR')}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {createdDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </TableCell>
+                        <TableCell className="font-medium">{item.title}</TableCell>
+                        <TableCell className="text-center">
+                          {itemType === 'I' && (
+                            <div className="w-6 h-6 mx-auto rounded-full border-2 border-blue-500 bg-blue-100 flex items-center justify-center">
+                              <Info className="w-3 h-3 text-blue-600" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {itemType === 'D' && (
+                            <div className="w-6 h-6 mx-auto rounded-full bg-green-500 flex items-center justify-center">
+                              <CheckCircle className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {itemType === 'A' && (
+                            <div className="w-6 h-6 mx-auto rounded-full border-2 border-orange-500 bg-orange-100 flex items-center justify-center">
+                              <Clock className="w-3 h-3 text-orange-600" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {itemType === 'A' && (item as any).dueDate ? 
+                            new Date((item as any).dueDate).toLocaleDateString('fr-FR') : 
+                            '-'
+                          }
+                        </TableCell>
+                        <TableCell className="max-w-md">
+                          <p className="text-sm line-clamp-2">{item.notes || '-'}</p>
+                        </TableCell>
+                        <TableCell>{item.owner || '-'}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.status}
+                            onValueChange={(value: string) => updateItemStatus(item.id, value)}
+                          >
+                            <SelectTrigger className="w-full text-xs bg-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                              <SelectItem value="À initier">À initier</SelectItem>
+                              <SelectItem value="En cours">En cours</SelectItem>
+                              <SelectItem value="En pause">En pause</SelectItem>
+                              <SelectItem value="En retard">En retard</SelectItem>
+                              <SelectItem value="Bloqué">Bloqué</SelectItem>
+                              <SelectItem value="Terminé">Terminé</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteRidaItem(item.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -356,6 +441,37 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
               Aucun élément dans le relevé pour l'instant
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Instructions d'utilisation du RIDA */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Instructions d'utilisation du RIDA</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3 text-sm">
+            <div className="flex gap-2">
+              <span className="font-semibold text-blue-600">1.</span>
+              <span>Notez de manière abrégée les informations, décisions et actions abordées en cellule de crise.</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold text-blue-600">2.</span>
+              <span>Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ? Indiquez un I, D, ou A dans la colonne Type correspondante.</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold text-blue-600">3.</span>
+              <span>Notez qui est l'acteur/le porteur associé à ce sujet.</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold text-blue-600">4.</span>
+              <span>Précisez la date d'échéance s'il s'agit d'une action.</span>
+            </div>
+            <div className="flex gap-2">
+              <span className="font-semibold text-blue-600">5.</span>
+              <span>Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions à réaliser pour faire le point d'avancement de ces actions.</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
