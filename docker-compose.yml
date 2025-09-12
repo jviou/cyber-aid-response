@@ -1,9 +1,6 @@
-version: "3.9"
-
 services:
-  # === Supabase stack minimal pour dev local ===
   db:
-    image: supabase/postgres:15.1.1.48
+    image: supabase/postgres:15.1.1
     container_name: car_db
     restart: unless-stopped
     ports:
@@ -16,26 +13,8 @@ services:
       - supabase-db:/var/lib/postgresql/data
       - ./supabase/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
 
-  kong:
-    image: supabase/kong:2.8.1
-    container_name: car_kong
-    restart: unless-stopped
-    depends_on:
-      - rest
-      - auth
-      - realtime
-      - storage
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
-      KONG_DNS_ORDER: LAST,SRV,A,CNAME
-    volumes:
-      - supabase-kong:/var/lib/kong
-    ports:
-      - "54321:8000"   # ← URL API depuis le navigateur: http://localhost:54321
-
   rest:
-    image: supabase/postgrest:v12.0.2
+    image: postgrest/postgrest:v12.0.2
     container_name: car_rest
     restart: unless-stopped
     depends_on: [db]
@@ -78,7 +57,22 @@ services:
       POSTGREST_URL: http://rest:3000
       PGRST_JWT_AUD: authenticated
 
-  # === Frontend React/Vite ===
+  kong:
+    image: supabase/kong:2.8.1
+    container_name: car_kong
+    restart: unless-stopped
+    depends_on:
+      - rest
+      - auth
+      - realtime
+      - storage
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,SRV,A,CNAME
+    ports:
+      - "54321:8000"
+
   web:
     build:
       context: .
@@ -86,7 +80,6 @@ services:
     container_name: car_web
     restart: unless-stopped
     environment:
-      # IMPORTANT: côté navigateur on pointe sur localhost:54321 (exposé par kong)
       VITE_SUPABASE_URL: http://localhost:54321
       VITE_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-dev-anon-key}
       VITE_DEFAULT_SESSION_ID: ${NEXT_PUBLIC_DEFAULT_SESSION_ID:-00000000-0000-0000-0000-000000000000}
@@ -94,6 +87,6 @@ services:
       - "5173:5173"
     depends_on:
       - kong
+
 volumes:
   supabase-db:
-  supabase-kong:
