@@ -85,7 +85,7 @@ export function SessionHeader() {
 
     setIsResetting(true);
     try {
-      const sessionId = await DEFAULT_SESSION_ID();
+      const sessionId = DEFAULT_SESSION_ID;
       
       // Delete all RIDA entries
       const { error: ridaError } = await supabase

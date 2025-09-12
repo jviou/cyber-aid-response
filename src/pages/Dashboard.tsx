@@ -20,7 +20,8 @@ import {
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { fetchKpis, DEFAULT_SESSION_ID } from "@/lib/db";
+import { fetchKpis, DEFAULT_SESSION_ID, getLastRida, Rida } from "@/lib/db";
+import { subscribeRida } from "@/lib/realtime";
 
 export function Dashboard() {
   const { state, updateState, sessionId } = useCrisisState();
@@ -38,6 +39,8 @@ export function Dashboard() {
     email: "",
     phone: ""
   });
+  const [lastRida, setLastRida] = useState<Rida | null>(null);
+  const [loadingLastRida, setLoadingLastRida] = useState(true);
 
   // Load KPIs from database
   const loadKpis = async () => {
@@ -53,30 +56,35 @@ export function Dashboard() {
     }
   };
 
+  // Load last RIDA
+  const loadLastRida = async () => {
+    try {
+      setLoadingLastRida(true);
+      const data = await getLastRida();
+      setLastRida(data);
+    } catch (error) {
+      console.error('Error loading last RIDA:', error);
+    } finally {
+      setLoadingLastRida(false);
+    }
+  };
+
   useEffect(() => {
     loadKpis();
+    loadLastRida();
   }, []);
 
   // Real-time updates for RIDA and Resources
   useEffect(() => {
-    let ridaChannel: any;
     let resourceChannel: any;
+    let unsubscribeRida: (() => void) | null = null;
     
-    const setupRealtimeSubscriptions = async () => {
-      const sessionId = await DEFAULT_SESSION_ID();
-      
-      // RIDA updates
-      ridaChannel = supabase
-        .channel('dashboard-rida-updates')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'rida_entry',
-          filter: `session_id=eq.${sessionId}`
-        }, () => {
-          loadKpis();
-        })
-        .subscribe();
+    const setupRealtimeSubscriptions = () => {
+      // RIDA updates using custom realtime hook
+      unsubscribeRida = subscribeRida(() => {
+        loadKpis();
+        loadLastRida();
+      });
 
       // Resource updates  
       resourceChannel = supabase
@@ -85,7 +93,7 @@ export function Dashboard() {
           event: '*',
           schema: 'public',
           table: 'resource_item',
-          filter: `session_id=eq.${sessionId}`
+          filter: `session_id=eq.${DEFAULT_SESSION_ID}`
         }, () => {
           loadKpis();
         })
@@ -95,7 +103,7 @@ export function Dashboard() {
     setupRealtimeSubscriptions();
 
     return () => {
-      if (ridaChannel) supabase.removeChannel(ridaChannel);
+      if (unsubscribeRida) unsubscribeRida();
       if (resourceChannel) supabase.removeChannel(resourceChannel);
     };
   }, []);
@@ -183,7 +191,7 @@ export function Dashboard() {
       </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Éléments RIDA</CardTitle>
@@ -243,6 +251,61 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Last RIDA Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Dernier RIDA</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => window.location.href = '/decisions'}>
+              Voir le RIDA
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingLastRida ? (
+            <div className="flex items-center space-x-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-muted-foreground">Chargement...</span>
+            </div>
+          ) : lastRida ? (
+            <div className="space-y-3">
+              <div>
+                <h3 className="font-semibold text-lg">{lastRida.title}</h3>
+                <div className="flex items-center space-x-4 mt-2">
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(lastRida.created_at!).toLocaleDateString('fr-FR')}
+                  </span>
+                  <Badge 
+                    variant="secondary" 
+                    className={`${
+                      lastRida.status === 'nouveau' ? 'bg-gray-100' :
+                      lastRida.status === 'en_cours' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }`}
+                  >
+                    {lastRida.status === 'nouveau' ? 'Nouveau' :
+                     lastRida.status === 'en_cours' ? 'En cours' : 'Clos'}
+                  </Badge>
+                </div>
+              </div>
+              {lastRida.notes && (
+                <p className="text-sm text-muted-foreground line-clamp-3">
+                  {lastRida.notes.length > 200 ? `${lastRida.notes.substring(0, 200)}...` : lastRida.notes}
+                </p>
+              )}
+              {lastRida.owner && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Assigné à:</span>
+                  <span className="text-xs font-medium">{lastRida.owner}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Aucun RIDA enregistré</p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contacts clés */}

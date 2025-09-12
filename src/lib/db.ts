@@ -14,46 +14,79 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   }
 });
 
-// Get default session ID
-let cachedDefaultSessionId: string | null = null;
+// Default session ID from environment
+export const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID || "default-session-12345";
 
-export const DEFAULT_SESSION_ID = async (): Promise<string> => {
-  if (!cachedDefaultSessionId) {
-    cachedDefaultSessionId = await getDefaultSessionId();
-  }
-  return cachedDefaultSessionId;
-};
+// RIDA types
+export type Rida = {
+  id?: string
+  session_id?: string
+  title: string
+  status?: 'nouveau' | 'en_cours' | 'clos'
+  owner?: string
+  notes?: string
+  created_at?: string
+  updated_at?: string
+}
 
 // Save RIDA entry
-export async function saveRida(entry: Omit<Database['public']['Tables']['rida_entry']['Insert'], 'session_id' | 'updated_at'>) {
-  const sessionId = await DEFAULT_SESSION_ID();
-  
+export async function saveRida(entry: Rida) {
+  const payload = {
+    ...entry,
+    session_id: DEFAULT_SESSION_ID,
+    updated_at: new Date().toISOString(),
+  }
   const { data, error } = await supabase
     .from('rida_entry')
-    .upsert({
-      ...entry,
-      session_id: sessionId,
-      updated_at: new Date().toISOString(),
-    })
+    .upsert(payload, { onConflict: 'id' })
     .select()
-    .single();
+    .single()
+  if (error) throw error
+  return data
+}
 
-  if (error) {
-    throw new Error(`Erreur lors de la sauvegarde RIDA: ${error.message}`);
-  }
+// List RIDA entries
+export async function listRida() {
+  const { data, error } = await supabase
+    .from('rida_entry')
+    .select('*')
+    .eq('session_id', DEFAULT_SESSION_ID)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data as Rida[]
+}
 
-  return data;
+// Delete RIDA entry
+export async function deleteRida(id: string) {
+  const { error } = await supabase
+    .from('rida_entry')
+    .delete()
+    .eq('id', id)
+    .eq('session_id', DEFAULT_SESSION_ID)
+  if (error) throw error
+}
+
+// Get last RIDA entry
+export async function getLastRida() {
+  const { data, error } = await supabase
+    .from('rida_entry')
+    .select('*')
+    .eq('session_id', DEFAULT_SESSION_ID)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data as Rida | null
 }
 
 // Save resource item
 export async function saveResource(item: Omit<Database['public']['Tables']['resource_item']['Insert'], 'session_id' | 'updated_at'>) {
-  const sessionId = await DEFAULT_SESSION_ID();
   
   const { data, error } = await supabase
     .from('resource_item')
     .upsert({
       ...item,
-      session_id: sessionId,
+      session_id: DEFAULT_SESSION_ID,
       updated_at: new Date().toISOString(),
     })
     .select()
@@ -68,12 +101,11 @@ export async function saveResource(item: Omit<Database['public']['Tables']['reso
 
 // Fetch KPIs for default session
 export async function fetchKpis() {
-  const sessionId = await DEFAULT_SESSION_ID();
   
   const { data, error } = await supabase
     .from('dashboard_kpis')
     .select('*')
-    .eq('session_id', sessionId)
+    .eq('session_id', DEFAULT_SESSION_ID)
     .single();
 
   if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned

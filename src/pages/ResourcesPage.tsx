@@ -33,7 +33,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
   const loadResources = async () => {
     try {
       setLoading(true);
-      const sessionId = await DEFAULT_SESSION_ID();
+      const sessionId = DEFAULT_SESSION_ID;
       const { data, error } = await supabase
         .from('resource_item')
         .select('*')
@@ -59,7 +59,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
     let channel: any;
     
     const setupRealtimeSubscription = async () => {
-      const sessionId = await DEFAULT_SESSION_ID();
+      const sessionId = DEFAULT_SESSION_ID;
       
       channel = supabase
         .channel('resource-updates')

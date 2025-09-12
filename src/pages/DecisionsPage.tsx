@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Clock, User, Info, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Decision } from "@/types/crisis";
 import { toast } from "sonner";
-import { saveRida, supabase, DEFAULT_SESSION_ID } from "@/lib/db";
+import { saveRida, supabase, DEFAULT_SESSION_ID, listRida, deleteRida, Rida } from "@/lib/db";
 import type { Database } from "@/integrations/supabase/types";
 
 interface RIDAItem {
@@ -32,19 +32,19 @@ interface DecisionsPageProps {
   onDeleteDecision: (id: string) => void;
 }
 
-type DBRidaEntry = Database['public']['Tables']['rida_entry']['Row'];
+
 
 export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }: DecisionsPageProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<RIDAItem | null>(null);
-  const [ridaItems, setRidaItems] = useState<DBRidaEntry[]>([]);
+  const [ridaItems, setRidaItems] = useState<Rida[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUnsaved, setIsUnsaved] = useState(false);
   
   const [newRidaItem, setNewRidaItem] = useState({
     title: "",
-    status: "nouveau" as string,
+    status: "nouveau" as "nouveau" | "en_cours" | "clos",
     owner: "",
     notes: ""
   });
@@ -53,15 +53,8 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
   const loadRidaItems = async () => {
     try {
       setLoading(true);
-      const sessionId = await DEFAULT_SESSION_ID();
-      const { data, error } = await supabase
-        .from('rida_entry')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setRidaItems(data || []);
+      const data = await listRida();
+      setRidaItems(data);
     } catch (error) {
       console.error('Error loading RIDA items:', error);
       toast.error("Erreur lors du chargement des éléments RIDA");
@@ -76,30 +69,20 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
 
   // Realtime subscription
   useEffect(() => {
-    let channel: any;
-    
-    const setupRealtimeSubscription = async () => {
-      const sessionId = await DEFAULT_SESSION_ID();
-      
-      channel = supabase
-        .channel('rida-updates')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'rida_entry',
-          filter: `session_id=eq.${sessionId}`
-        }, () => {
-          loadRidaItems();
-        })
-        .subscribe();
-    };
-
-    setupRealtimeSubscription();
+    const channel = supabase
+      .channel('rida-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'rida_entry',
+        filter: `session_id=eq.${DEFAULT_SESSION_ID}`
+      }, () => {
+        loadRidaItems();
+      })
+      .subscribe();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -134,12 +117,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
   const handleDeleteRidaItem = async (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
       try {
-        const { error } = await supabase
-          .from('rida_entry')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
+        await deleteRida(id);
         toast.success("Élément supprimé");
         await loadRidaItems();
       } catch (error) {
@@ -251,7 +229,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                     <Label>État</Label>
                     <Select 
                       value={newRidaItem.status} 
-                      onValueChange={(value) => {
+                      onValueChange={(value: "nouveau" | "en_cours" | "clos") => {
                         setNewRidaItem({...newRidaItem, status: value});
                         setIsUnsaved(true);
                       }}
