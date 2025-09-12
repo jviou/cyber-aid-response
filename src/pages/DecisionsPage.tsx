@@ -44,7 +44,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
   
   const [newRidaItem, setNewRidaItem] = useState({
     title: "",
-    status: "nouveau" as const,
+    status: "nouveau" as string,
     owner: "",
     notes: ""
   });
@@ -251,7 +251,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                     <Label>État</Label>
                     <Select 
                       value={newRidaItem.status} 
-                      onValueChange={(value: string) => {
+                      onValueChange={(value) => {
                         setNewRidaItem({...newRidaItem, status: value});
                         setIsUnsaved(true);
                       }}

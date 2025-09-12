@@ -5,9 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Plus, Trash2, Upload, ExternalLink, FileText, Link as LinkIcon, Download, Loader2 } from "lucide-react";
-import { uploadFile, listFiles, deleteFile, getFileUrl, ResourceFile } from "@/lib/resources";
+import { Plus, Trash2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveResource, supabase, DEFAULT_SESSION_ID } from "@/lib/db";
 import type { Database } from "@/integrations/supabase/types";
@@ -31,7 +29,6 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
     contact: "",
     notes: ""
   });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadResources = async () => {
     try {
@@ -133,36 +130,6 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
     }
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    setNewResource({
-      ...newResource,
-      files: [...newResource.files, ...selectedFiles]
-    });
-  };
-
-  const handleDownload = async (resource: ResourceFile) => {
-    try {
-      const url = await getFileUrl(resource.blob_key || '');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = resource.title;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast.error("Erreur lors du téléchargement");
-    }
-  };
-
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'N/A';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
-  };
-
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -170,13 +137,6 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
-  };
-
-  const removeFile = (index: number) => {
-    setNewResource({
-      ...newResource,
-      files: newResource.files.filter((_, i) => i !== index)
     });
   };
 
