@@ -64,27 +64,6 @@ export type Database = {
           },
         ]
       }
-      app_session: {
-        Row: {
-          id: string
-          is_active: boolean
-          label: string
-          started_at: string
-        }
-        Insert: {
-          id?: string
-          is_active?: boolean
-          label: string
-          started_at?: string
-        }
-        Update: {
-          id?: string
-          is_active?: boolean
-          label?: string
-          started_at?: string
-        }
-        Relationships: []
-      }
       app_state: {
         Row: {
           session_id: string
@@ -368,57 +347,6 @@ export type Database = {
         }
         Relationships: []
       }
-      resource_item: {
-        Row: {
-          contact: string | null
-          created_at: string
-          id: string
-          location: string | null
-          name: string
-          notes: string | null
-          session_id: string
-          type: string | null
-          updated_at: string
-        }
-        Insert: {
-          contact?: string | null
-          created_at?: string
-          id?: string
-          location?: string | null
-          name: string
-          notes?: string | null
-          session_id: string
-          type?: string | null
-          updated_at?: string
-        }
-        Update: {
-          contact?: string | null
-          created_at?: string
-          id?: string
-          location?: string | null
-          name?: string
-          notes?: string | null
-          session_id?: string
-          type?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "resource_item_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "app_session"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resource_item_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "dashboard_kpis"
-            referencedColumns: ["session_id"]
-          },
-        ]
-      }
       resources: {
         Row: {
           added_at: string
@@ -478,60 +406,6 @@ export type Database = {
           },
         ]
       }
-      rida_entry: {
-        Row: {
-          created_at: string
-          due_date: string | null
-          id: string
-          notes: string | null
-          owner: string | null
-          session_id: string
-          status: string
-          title: string
-          type: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          due_date?: string | null
-          id?: string
-          notes?: string | null
-          owner?: string | null
-          session_id: string
-          status?: string
-          title: string
-          type?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          due_date?: string | null
-          id?: string
-          notes?: string | null
-          owner?: string | null
-          session_id?: string
-          status?: string
-          title?: string
-          type?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "rida_entry_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "app_session"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rida_entry_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "dashboard_kpis"
-            referencedColumns: ["session_id"]
-          },
-        ]
-      }
       sessions: {
         Row: {
           created_at: string
@@ -567,17 +441,7 @@ export type Database = {
       }
     }
     Views: {
-      dashboard_kpis: {
-        Row: {
-          ressources_total: number | null
-          rida_clos: number | null
-          rida_en_cours: number | null
-          rida_total: number | null
-          session_id: string | null
-          session_label: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       is_member: {

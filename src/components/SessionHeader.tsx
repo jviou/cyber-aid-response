@@ -11,13 +11,11 @@ import {
   Upload, 
   RotateCcw, 
   Menu,
-  Save,
-  Trash2
+  Save
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { exportJSON, importJSON, resetSession, saveState } from "@/lib/stateStore";
 import { toast } from "sonner";
-import { supabase, DEFAULT_SESSION_ID } from "@/lib/db";
 
 export function SessionHeader() {
   const { state, sessionId, updateState } = useCrisisState();
@@ -78,40 +76,6 @@ export function SessionHeader() {
     }
   };
 
-  const handleResetDatabase = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir réinitialiser la session ? Toutes les données RIDA et ressources seront supprimées.")) {
-      return;
-    }
-
-    setIsResetting(true);
-    try {
-      const sessionId = DEFAULT_SESSION_ID;
-      
-      // Delete all RIDA entries
-      const { error: ridaError } = await supabase
-        .from('rida_entry')
-        .delete()
-        .eq('session_id', sessionId);
-
-      if (ridaError) throw ridaError;
-
-      // Delete all resource items
-      const { error: resourceError } = await supabase
-        .from('resource_item')
-        .delete()
-        .eq('session_id', sessionId);
-
-      if (resourceError) throw resourceError;
-
-      toast.success("Session réinitialisée");
-    } catch (error) {
-      console.error('Error resetting database:', error);
-      toast.error("Erreur lors de la réinitialisation");
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center justify-between px-6">
@@ -152,14 +116,6 @@ export function SessionHeader() {
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 {isResetting ? 'Réinitialisation...' : 'Réinitialiser Session'}
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleResetDatabase}
-                disabled={isResetting}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                {isResetting ? 'Réinitialisation...' : 'Réinitialiser la session'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
