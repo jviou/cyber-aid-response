@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
-import { getDefaultSessionId } from './defaultSession';
 
 // Supabase client configuration
 const SUPABASE_URL = "https://xlzfvgqfopdlvrolorba.supabase.co";
