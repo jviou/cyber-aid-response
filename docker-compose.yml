@@ -68,7 +68,7 @@ services:
       FLY_APP_NAME: "local"
 
   storage:
-    image: supabase/storage-api:v1.0.9
+    image: supabase/storage-api:latest
     container_name: car_storage
     restart: unless-stopped
     depends_on: [db, auth]
