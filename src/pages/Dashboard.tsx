@@ -131,6 +131,17 @@ export function Dashboard() {
   
   // Recent events including RIDA items
   const allRecentItems = [
+    // Add last RIDA at the top if it exists
+    ...(lastRida ? [{
+      id: lastRida.id!,
+      type: 'rida' as const,
+      title: lastRida.title,
+      category: 'RIDA',
+      date: lastRida.created_at!,
+      details: lastRida.notes,
+      owner: lastRida.owner,
+      status: lastRida.status
+    }] : []),
     ...state.journal.map(event => ({
       id: event.id,
       type: 'journal' as const,
@@ -252,60 +263,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Last RIDA Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Dernier RIDA</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => window.location.href = '/decisions'}>
-              Voir le RIDA
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingLastRida ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-muted-foreground">Chargement...</span>
-            </div>
-          ) : lastRida ? (
-            <div className="space-y-3">
-              <div>
-                <h3 className="font-semibold text-lg">{lastRida.title}</h3>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(lastRida.created_at!).toLocaleDateString('fr-FR')}
-                  </span>
-                  <Badge 
-                    variant="secondary" 
-                    className={`${
-                      lastRida.status === 'nouveau' ? 'bg-gray-100' :
-                      lastRida.status === 'en_cours' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {lastRida.status === 'nouveau' ? 'Nouveau' :
-                     lastRida.status === 'en_cours' ? 'En cours' : 'Clos'}
-                  </Badge>
-                </div>
-              </div>
-              {lastRida.notes && (
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {lastRida.notes.length > 200 ? `${lastRida.notes.substring(0, 200)}...` : lastRida.notes}
-                </p>
-              )}
-              {lastRida.owner && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Assigné à:</span>
-                  <span className="text-xs font-medium">{lastRida.owner}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">Aucun RIDA enregistré</p>
-          )}
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contacts clés */}
@@ -396,21 +353,40 @@ export function Dashboard() {
         {/* Derniers événements */}
         <Card>
           <CardHeader>
-            <CardTitle>Derniers Événements</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Derniers Événements</CardTitle>
+              {lastRida && (
+                <Button size="sm" variant="outline" onClick={() => window.location.href = '/decisions'}>
+                  Voir le RIDA
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {allRecentItems.length > 0 ? (
               <div className="space-y-3">
-                {allRecentItems.map((item) => (
+                {allRecentItems.map((item, index) => (
                   <div key={`${item.type}-${item.id}`} className={`border-l-4 pl-4 pb-3 ${
                     item.type === 'rida' ? 'border-amber-500' : 'border-primary'
                   }`}>
                     <div className="flex items-center gap-2">
                       {item.type === 'rida' ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                          <FileText className="w-3 h-3 mr-1" />
-                          {item.category}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                            <Gavel className="w-3 h-3 mr-1" />
+                            {item.category}
+                          </Badge>
+                          {index === 0 && lastRida && item.id === lastRida.id && (
+                            <Badge variant="secondary" className={`${
+                              (item as any).status === 'nouveau' ? 'bg-gray-100' :
+                              (item as any).status === 'en_cours' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {(item as any).status === 'nouveau' ? 'Nouveau' :
+                               (item as any).status === 'en_cours' ? 'En cours' : 'Clos'}
+                            </Badge>
+                          )}
+                        </div>
                       ) : (
                         <Badge variant="outline">{item.category}</Badge>
                       )}

@@ -161,8 +161,25 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
               Relevé des Informations, Décisions & Actions (RIDA)
             </h1>
             <p className="text-gray-600 mt-2 max-w-4xl">
-              Le RIDA est un outil de gestion de projet qui permet de retrouver les différentes informations transmises lors d'une crise dans un document.
+              Le RIDA est un outil de gestion de projet qui permet de retrouver les différentes informations transmises lors d'une crise dans un document. Ces informations sont le point de départ de décisions à prendre en équipe, et d'actions à réaliser.
             </p>
+            <div className="mt-4 text-sm text-gray-700">
+              <p className="font-medium">Le relevé comprend :</p>
+              <div className="flex flex-wrap gap-6 mt-2">
+                <div className="flex items-start gap-2">
+                  <span className="font-medium text-blue-800">• Information :</span>
+                  <span>l'élément factuel diffusé à tous les membres de la cellule</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-medium text-green-800">• Décision :</span>
+                  <span>les décisions prises pour faire avancer la crise par la cellule décisionnelle</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="font-medium text-orange-800">• Action :</span>
+                  <span>les tâches à réaliser pour parvenir à un résultat</span>
+                </div>
+              </div>
+            </div>
           </div>
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
