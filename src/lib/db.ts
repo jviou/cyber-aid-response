@@ -13,8 +13,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   }
 });
 
-// Default session ID from environment
-export const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID || "default-session-12345";
+// Default session ID - using a valid UUID format
+export const DEFAULT_SESSION_ID = "25ef0e21-ed9b-4847-814e-c1b8d826f247";
 
 // RIDA types
 export type Rida = {
