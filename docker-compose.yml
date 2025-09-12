@@ -1,0 +1,99 @@
+version: "3.9"
+
+services:
+  # === Supabase stack minimal pour dev local ===
+  db:
+    image: supabase/postgres:15.1.1.48
+    container_name: car_db
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+    volumes:
+      - supabase-db:/var/lib/postgresql/data
+      - ./supabase/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+
+  kong:
+    image: supabase/kong:2.8.1
+    container_name: car_kong
+    restart: unless-stopped
+    depends_on:
+      - rest
+      - auth
+      - realtime
+      - storage
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,SRV,A,CNAME
+    volumes:
+      - supabase-kong:/var/lib/kong
+    ports:
+      - "54321:8000"   # ← URL API depuis le navigateur: http://localhost:54321
+
+  rest:
+    image: supabase/postgrest:v12.0.2
+    container_name: car_rest
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+
+  auth:
+    image: supabase/gotrue:v2.150.0
+    container_name: car_auth
+    restart: unless-stopped
+    depends_on: [db]
+    env_file:
+      - ./supabase/.env.supabase
+
+  realtime:
+    image: supabase/realtime:v2.25.63
+    container_name: car_realtime
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      DB_HOST: db
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      PORT: 4000
+      SECURE_CHANNELS: "false"
+      FLY_ALLOC_ID: "local"
+      FLY_APP_NAME: "local"
+
+  storage:
+    image: supabase/storage-api:v1.0.9
+    container_name: car_storage
+    restart: unless-stopped
+    depends_on: [db, auth]
+    environment:
+      ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-dev-anon-key}
+      SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_AUD: authenticated
+
+  # === Frontend React/Vite ===
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: car_web
+    restart: unless-stopped
+    environment:
+      # IMPORTANT: côté navigateur on pointe sur localhost:54321 (exposé par kong)
+      VITE_SUPABASE_URL: http://localhost:54321
+      VITE_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-dev-anon-key}
+      VITE_DEFAULT_SESSION_ID: ${NEXT_PUBLIC_DEFAULT_SESSION_ID:-00000000-0000-0000-0000-000000000000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - kong
+volumes:
+  supabase-db:
+  supabase-kong:
