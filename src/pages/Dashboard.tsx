@@ -14,101 +14,45 @@ import {
   Plus,
   Trash2,
   FileText,
-  Gavel,
-  Loader2
+  Gavel
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { fetchKpis, DEFAULT_SESSION_ID, getLastRida, Rida } from "@/lib/db";
-import { subscribeRida } from "@/lib/realtime";
 
 export function Dashboard() {
   const { state, updateState, sessionId } = useCrisisState();
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
-  const [kpis, setKpis] = useState({
-    rida_total: 0,
-    rida_en_cours: 0,
-    rida_clos: 0,
-    ressources_total: 0
-  });
-  const [loadingKpis, setLoadingKpis] = useState(true);
   const [newContact, setNewContact] = useState({
     name: "",
     role: "",
     email: "",
     phone: ""
   });
-  const [lastRida, setLastRida] = useState<Rida | null>(null);
-  const [loadingLastRida, setLoadingLastRida] = useState(true);
 
-  // Load KPIs from database
-  const loadKpis = async () => {
-    try {
-      setLoadingKpis(true);
-      const data = await fetchKpis();
-      setKpis(data);
-    } catch (error) {
-      console.error('Error loading KPIs:', error);
-      toast.error("Erreur lors du chargement des statistiques");
-    } finally {
-      setLoadingKpis(false);
-    }
-  };
-
-  // Load last RIDA
-  const loadLastRida = async () => {
-    try {
-      setLoadingLastRida(true);
-      const data = await getLastRida();
-      setLastRida(data);
-    } catch (error) {
-      console.error('Error loading last RIDA:', error);
-    } finally {
-      setLoadingLastRida(false);
-    }
-  };
-
+  // Real-time updates
   useEffect(() => {
-    loadKpis();
-    loadLastRida();
-  }, []);
+    if (!sessionId) return;
 
-  // Real-time updates for RIDA and Resources
-  useEffect(() => {
-    let resourceChannel: any;
-    let unsubscribeRida: (() => void) | null = null;
-    
-    const setupRealtimeSubscriptions = () => {
-      // RIDA updates using custom realtime hook
-      unsubscribeRida = subscribeRida(() => {
-        loadKpis();
-        loadLastRida();
-      });
-
-      // Resource updates  
-      resourceChannel = supabase
-        .channel('dashboard-resource-updates')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'resource_item',
-          filter: `session_id=eq.${DEFAULT_SESSION_ID}`
-        }, () => {
-          loadKpis();
-        })
-        .subscribe();
-    };
-
-    setupRealtimeSubscriptions();
+    const channel = supabase
+      .channel('dashboard-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'crisis_sessions'
+      }, () => {
+        // Refresh crisis state when data changes
+        window.location.reload(); // Simple refresh for now
+      })
+      .subscribe();
 
     return () => {
-      if (unsubscribeRida) unsubscribeRida();
-      if (resourceChannel) supabase.removeChannel(resourceChannel);
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [sessionId]);
 
-  // Calculate KPIs from state (for phases progress and other metrics)
+  // Calculate KPIs
+  const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
   const totalCommunications = state.communications.length;
   
   const phasesProgress = useMemo(() => {
@@ -129,26 +73,11 @@ export function Dashboard() {
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   }, [state.phases]);
   
-  // Recent events including RIDA items
-  const allRecentItems = [
-    ...state.journal.map(event => ({
-      id: event.id,
-      type: 'journal' as const,
-      title: event.title,
-      category: event.category,
-      date: event.at,
-      details: event.details
-    })),
-    ...state.decisions.map(rida => ({
-      id: rida.id,
-      type: 'rida' as const,
-      title: rida.title,
-      category: 'RIDA',
-      date: rida.decidedAt,
-      details: rida.rationale,
-      owner: rida.owner
-    }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  // Recent journal events
+  const recentEvents = state.journal.slice(0, 3);
+  
+  // Recent RIDA items
+  const recentRida = state.decisions.slice(-3).reverse();
   
   const handleAddContact = () => {
     if (!newContact.name.trim()) {
@@ -191,41 +120,15 @@ export function Dashboard() {
       </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Éléments RIDA</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loadingKpis ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{kpis.rida_total}</div>
-                <div className="text-xs text-muted-foreground space-x-2">
-                  <span>En cours: {kpis.rida_en_cours}</span>
-                  <span>Clos: {kpis.rida_clos}</span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ressources</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loadingKpis ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{kpis.ressources_total}</div>
-                <p className="text-xs text-muted-foreground">Ressources disponibles</p>
-              </>
-            )}
+            <div className="text-2xl font-bold">{totalRidaItems}</div>
+            <p className="text-xs text-muted-foreground">Informations, Décisions & Actions</p>
           </CardContent>
         </Card>
 
@@ -252,62 +155,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Last RIDA Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Dernier RIDA</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => window.location.href = '/decisions'}>
-              Voir le RIDA
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingLastRida ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-muted-foreground">Chargement...</span>
-            </div>
-          ) : lastRida ? (
-            <div className="space-y-3">
-              <div>
-                <h3 className="font-semibold text-lg">{lastRida.title}</h3>
-                <div className="flex items-center space-x-4 mt-2">
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(lastRida.created_at!).toLocaleDateString('fr-FR')}
-                  </span>
-                  <Badge 
-                    variant="secondary" 
-                    className={`${
-                      lastRida.status === 'nouveau' ? 'bg-gray-100' :
-                      lastRida.status === 'en_cours' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {lastRida.status === 'nouveau' ? 'Nouveau' :
-                     lastRida.status === 'en_cours' ? 'En cours' : 'Clos'}
-                  </Badge>
-                </div>
-              </div>
-              {lastRida.notes && (
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {lastRida.notes.length > 200 ? `${lastRida.notes.substring(0, 200)}...` : lastRida.notes}
-                </p>
-              )}
-              {lastRida.owner && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Assigné à:</span>
-                  <span className="text-xs font-medium">{lastRida.owner}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">Aucun RIDA enregistré</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contacts clés */}
         <Card>
           <CardHeader>
@@ -399,42 +247,71 @@ export function Dashboard() {
             <CardTitle>Derniers Événements</CardTitle>
           </CardHeader>
           <CardContent>
-            {allRecentItems.length > 0 ? (
+            {recentEvents.length > 0 ? (
               <div className="space-y-3">
-                {allRecentItems.map((item) => (
-                  <div key={`${item.type}-${item.id}`} className={`border-l-4 pl-4 pb-3 ${
-                    item.type === 'rida' ? 'border-amber-500' : 'border-primary'
-                  }`}>
+                {recentEvents.map((event) => (
+                  <div key={event.id} className="border-l-4 border-primary pl-4 pb-3">
                     <div className="flex items-center gap-2">
-                      {item.type === 'rida' ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                          <FileText className="w-3 h-3 mr-1" />
-                          {item.category}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">{item.category}</Badge>
-                      )}
+                      <Badge variant="outline">{event.category}</Badge>
                       <span className="text-sm text-muted-foreground">
-                        {new Date(item.date).toLocaleString('fr-FR')}
+                        {new Date(event.at).toLocaleString('fr-FR')}
                       </span>
                     </div>
-                    <h4 className="font-medium mt-1">{item.title}</h4>
-                    {item.details && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {item.details}
-                      </p>
-                    )}
-                    {item.type === 'rida' && item.owner && (
-                      <div className="flex items-center gap-1 mt-2">
-                        <span className="text-xs text-muted-foreground">Assigné à:</span>
-                        <span className="text-xs font-medium">{item.owner}</span>
-                      </div>
+                    <h4 className="font-medium mt-1">{event.title}</h4>
+                    {event.details && (
+                      <p className="text-sm text-muted-foreground mt-1">{event.details}</p>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-muted-foreground">Aucun événement enregistré</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Résumé RIDA */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gavel className="w-5 h-5 text-primary" />
+              <CardTitle>Résumé RIDA</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentRida.length > 0 ? (
+              <div className="space-y-3">
+                {recentRida.map((rida) => (
+                  <div key={rida.id} className="border-l-4 border-amber-500 pl-4 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        <FileText className="w-3 h-3 mr-1" />
+                        RIDA
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(rida.decidedAt).toLocaleString('fr-FR')}
+                      </span>
+                    </div>
+                    <h4 className="font-medium mt-1">{rida.title}</h4>
+                    {rida.rationale && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {rida.rationale}
+                      </p>
+                    )}
+                    {rida.owner && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <span className="text-xs text-muted-foreground">Assigné à:</span>
+                        <span className="text-xs font-medium">{rida.owner}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <Gavel className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">Aucun élément RIDA enregistré</p>
+              </div>
             )}
           </CardContent>
         </Card>
