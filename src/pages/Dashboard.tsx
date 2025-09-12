@@ -14,15 +14,24 @@ import {
   Plus,
   Trash2,
   FileText,
-  Gavel
+  Gavel,
+  Loader2
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { fetchKpis, DEFAULT_SESSION_ID } from "@/lib/db";
 
 export function Dashboard() {
   const { state, updateState, sessionId } = useCrisisState();
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [kpis, setKpis] = useState({
+    rida_total: 0,
+    rida_en_cours: 0,
+    rida_clos: 0,
+    ressources_total: 0
+  });
+  const [loadingKpis, setLoadingKpis] = useState(true);
   const [newContact, setNewContact] = useState({
     name: "",
     role: "",
@@ -30,29 +39,68 @@ export function Dashboard() {
     phone: ""
   });
 
-  // Real-time updates
-  useEffect(() => {
-    if (!sessionId) return;
+  // Load KPIs from database
+  const loadKpis = async () => {
+    try {
+      setLoadingKpis(true);
+      const data = await fetchKpis();
+      setKpis(data);
+    } catch (error) {
+      console.error('Error loading KPIs:', error);
+      toast.error("Erreur lors du chargement des statistiques");
+    } finally {
+      setLoadingKpis(false);
+    }
+  };
 
-    const channel = supabase
-      .channel('dashboard-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'crisis_sessions'
-      }, () => {
-        // Refresh crisis state when data changes
-        window.location.reload(); // Simple refresh for now
-      })
-      .subscribe();
+  useEffect(() => {
+    loadKpis();
+  }, []);
+
+  // Real-time updates for RIDA and Resources
+  useEffect(() => {
+    let ridaChannel: any;
+    let resourceChannel: any;
+    
+    const setupRealtimeSubscriptions = async () => {
+      const sessionId = await DEFAULT_SESSION_ID();
+      
+      // RIDA updates
+      ridaChannel = supabase
+        .channel('dashboard-rida-updates')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'rida_entry',
+          filter: `session_id=eq.${sessionId}`
+        }, () => {
+          loadKpis();
+        })
+        .subscribe();
+
+      // Resource updates  
+      resourceChannel = supabase
+        .channel('dashboard-resource-updates')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'resource_item',
+          filter: `session_id=eq.${sessionId}`
+        }, () => {
+          loadKpis();
+        })
+        .subscribe();
+    };
+
+    setupRealtimeSubscriptions();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (ridaChannel) supabase.removeChannel(ridaChannel);
+      if (resourceChannel) supabase.removeChannel(resourceChannel);
     };
-  }, [sessionId]);
+  }, []);
 
-  // Calculate KPIs
-  const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
+  // Calculate KPIs from state (for phases progress and other metrics)
   const totalCommunications = state.communications.length;
   
   const phasesProgress = useMemo(() => {
@@ -142,8 +190,34 @@ export function Dashboard() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalRidaItems}</div>
-            <p className="text-xs text-muted-foreground">Informations, Décisions & Actions</p>
+            {loadingKpis ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{kpis.rida_total}</div>
+                <div className="text-xs text-muted-foreground space-x-2">
+                  <span>En cours: {kpis.rida_en_cours}</span>
+                  <span>Clos: {kpis.rida_clos}</span>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ressources</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {loadingKpis ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{kpis.ressources_total}</div>
+                <p className="text-xs text-muted-foreground">Ressources disponibles</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
