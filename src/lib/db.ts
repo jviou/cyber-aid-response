@@ -36,10 +36,14 @@ export async function saveRida(entry: Rida) {
     ...entry,
     session_id: DEFAULT_SESSION_ID,
     updated_at: new Date().toISOString(),
+    due_date: entry.dueDate ? new Date(entry.dueDate).toISOString() : null
   }
+  // Remove dueDate from payload as the column is due_date
+  const { dueDate, ...finalPayload } = payload
+  
   const { data, error } = await supabase
     .from('rida_entry')
-    .upsert(payload, { onConflict: 'id' })
+    .upsert(finalPayload, { onConflict: 'id' })
     .select()
     .single()
   if (error) throw error
@@ -54,7 +58,12 @@ export async function listRida() {
     .eq('session_id', DEFAULT_SESSION_ID)
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data as Rida[]
+  
+  // Map database columns to client format
+  return (data || []).map(item => ({
+    ...item,
+    dueDate: item.due_date || undefined
+  })) as Rida[]
 }
 
 // Delete RIDA entry
@@ -77,7 +86,14 @@ export async function getLastRida() {
     .limit(1)
     .maybeSingle()
   if (error) throw error
-  return data as Rida | null
+  
+  if (!data) return null
+  
+  // Map database columns to client format
+  return {
+    ...data,
+    dueDate: data.due_date || undefined
+  } as Rida
 }
 
 // Save resource item

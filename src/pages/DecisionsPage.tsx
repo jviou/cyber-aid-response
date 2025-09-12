@@ -135,7 +135,10 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
     try {
       const { error } = await supabase
         .from('rida_entry')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ 
+          status: newStatus, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', id);
 
       if (error) throw error;

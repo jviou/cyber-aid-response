@@ -481,32 +481,38 @@ export type Database = {
       rida_entry: {
         Row: {
           created_at: string
+          due_date: string | null
           id: string
           notes: string | null
           owner: string | null
           session_id: string
           status: string
           title: string
+          type: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          due_date?: string | null
           id?: string
           notes?: string | null
           owner?: string | null
           session_id: string
           status?: string
           title: string
+          type?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          due_date?: string | null
           id?: string
           notes?: string | null
           owner?: string | null
           session_id?: string
           status?: string
           title?: string
+          type?: string | null
           updated_at?: string
         }
         Relationships: [
