@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function Dashboard() {
-  const { state, updateState, sessionId } = useCrisisState();
+  const { state, updateState, sessionId, refreshState } = useCrisisState();
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [newContact, setNewContact] = useState({
     name: "",
@@ -30,26 +30,27 @@ export function Dashboard() {
     phone: ""
   });
 
-  // Real-time updates
+  // Real-time updates for RIDA entries
   useEffect(() => {
     if (!sessionId) return;
 
     const channel = supabase
-      .channel('dashboard-updates')
+      .channel('dashboard-rida-updates')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'crisis_sessions'
+        table: 'rida_entry',
+        filter: `session_id=eq.${sessionId}`
       }, () => {
-        // Refresh crisis state when data changes
-        window.location.reload(); // Simple refresh for now
+        // Refresh state when RIDA entries change
+        refreshState();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sessionId]);
+  }, [sessionId, refreshState]);
 
   // Calculate KPIs
   const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
