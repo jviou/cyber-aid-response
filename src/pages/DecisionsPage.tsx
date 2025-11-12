@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Clock, User, Info, CheckCircle, AlertCircle } from "lucide-react";
 import { Decision } from "@/types/crisis";
 import { toast } from "sonner";
+import { useCrisisState } from "@/hooks/useCrisisState";
 
 interface RIDAItem {
   id: string;
@@ -31,31 +32,11 @@ interface DecisionsPageProps {
 }
 
 export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }: DecisionsPageProps) {
+  const { state, updateState } = useCrisisState();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<RIDAItem | null>(null);
-  const [ridaItems, setRidaItems] = useState<RIDAItem[]>([
-    {
-      id: "1",
-      date: "26/11/2022",
-      time: "17:42",
-      subject: "Messagerie",
-      type: "I",
-      description: "Mise à pied fonctionnel, le messagerie central compromis par l'attaquant, qui a potentiellement accès à tous emails",
-      owner: "Admin",
-      status: "À initier"
-    },
-    {
-      id: "2", 
-      date: "26/11/2022",
-      time: "17:42",
-      subject: "Messagerie",
-      type: "D",
-      description: "Envoyer une communication interne via whatsapp et affichage dans les bureaux des services majeurs l'invitant à l'utiliser leurs boîtes mails personnelles",
-      owner: "Jean",
-      status: "À initier",
-      dueDate: "26/11/2022"
-    }
-  ]);
+  
+  const ridaItems = state.rida;
   
   const [newRidaItem, setNewRidaItem] = useState({
     subject: "",
@@ -85,7 +66,10 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
       dueDate: newRidaItem.dueDate || undefined
     };
 
-    setRidaItems([...ridaItems, newItem]);
+    updateState(state => ({
+      ...state,
+      rida: [...state.rida, newItem]
+    }));
     
     setNewRidaItem({
       subject: "",
@@ -100,17 +84,24 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
     toast.success("Élément RIDA ajouté");
   };
 
-  const handleDeleteRidaItem = (id: string) => {
+  const handleDeleteRidaItem = (id: string, event: React.MouseEvent) => {
+    event.stopPropagation();
     if (confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
-      setRidaItems(ridaItems.filter(item => item.id !== id));
+      updateState(state => ({
+        ...state,
+        rida: state.rida.filter(item => item.id !== id)
+      }));
       toast.success("Élément supprimé");
     }
   };
 
   const updateItemStatus = (id: string, newStatus: RIDAItem['status']) => {
-    setRidaItems(ridaItems.map(item => 
-      item.id === id ? { ...item, status: newStatus } : item
-    ));
+    updateState(state => ({
+      ...state,
+      rida: state.rida.map(item => 
+        item.id === id ? { ...item, status: newStatus } : item
+      )
+    }));
   };
 
   const getStatusBadgeVariant = (status: RIDAItem['status']) => {
@@ -341,7 +332,7 @@ export function DecisionsPage({ decisions, onCreateDecision, onDeleteDecision }:
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteRidaItem(item.id)}
+                        onClick={(e) => handleDeleteRidaItem(item.id, e)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-4 h-4" />
