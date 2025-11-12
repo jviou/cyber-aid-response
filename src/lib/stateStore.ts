@@ -39,17 +39,6 @@ export interface AppState {
     owner: string;
     decidedAt: string;
   }>;
-  rida: Array<{
-    id: string;
-    date: string;
-    time: string;
-    subject: string;
-    type: 'I' | 'D' | 'A';
-    description: string;
-    owner: string;
-    status: 'À initier' | 'En cours' | 'En pause' | 'En retard' | 'Bloqué' | 'Terminé';
-    dueDate?: string;
-  }>;
   communications: Array<{
     id: string;
     audience: string;
@@ -104,7 +93,6 @@ export function getDefaultState(): AppState {
     journal: [],
     actions: [],
     decisions: [],
-    rida: [],
     communications: [],
     phases: defaultPhases.map(p => ({
       id: p.id as 'P1' | 'P2' | 'P3' | 'P4',
