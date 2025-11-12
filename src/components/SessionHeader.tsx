@@ -14,7 +14,7 @@ import {
   Save
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { exportJSON, importJSON, resetSession, saveState } from "@/lib/stateStore";
+import { importJSON, resetSession } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
@@ -24,7 +24,14 @@ export function SessionHeader() {
 
   const handleExport = () => {
     try {
-      exportJSON(state);
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `crisis-session-${new Date().toISOString()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
       toast.success("Session exportée avec succès");
     } catch (error) {
       toast.error("Erreur lors de l'export");
@@ -69,7 +76,7 @@ export function SessionHeader() {
 
   const handleSave = async () => {
     try {
-      await saveState(sessionId, state);
+      localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(state));
       toast.success("Session sauvegardée");
     } catch (error) {
       toast.error("Erreur lors de la sauvegarde");

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AppState, getOrCreateSessionId, loadState, saveState, getDefaultState } from '@/lib/stateStore';
+import { AppState, getOrCreateSessionId, loadState, getDefaultState } from '@/lib/stateStore';
 import { toast } from 'sonner';
 
 interface CrisisStateContextType {
@@ -53,7 +53,7 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
 
     const timeout = setTimeout(async () => {
       try {
-        await saveState(sessionId, newState);
+        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(newState));
       } catch (error) {
         console.error('Error saving state:', error);
         toast.error('Erreur lors de la sauvegarde');

@@ -23,7 +23,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     if (!displayName.trim()) return;
     
     setLoading(true);
-    const result = await signInAnonymous(displayName);
+    const result = await signInAnonymous();
     setLoading(false);
     
     if (result.success) {
@@ -36,7 +36,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     if (!email.trim()) return;
     
     setLoading(true);
-    const result = await signInWithEmail(email);
+    const result = await signInWithEmail();
     setLoading(false);
     
     if (result.success) {

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+// No Supabase - local only
 import { defaultPhases } from '@/data/crisisData';
 
 export interface AppState {
@@ -116,95 +116,14 @@ export function getDefaultState(): AppState {
 }
 
 export async function loadState(sessionId: string): Promise<AppState> {
-  try {
-    const { data, error } = await supabase
-      .from('app_state')
-      .select('state')
-      .eq('session_id', sessionId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error loading state:', error);
-      return getDefaultState();
-    }
-
-    return (data?.state as unknown as AppState) || getDefaultState();
-  } catch (error) {
-    console.error('Error loading state:', error);
-    return getDefaultState();
-  }
-}
-
-export async function saveState(sessionId: string, state: AppState): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from('app_state')
-      .upsert({
-        session_id: sessionId,
-        state: state as any,
-        updated_at: new Date().toISOString()
-      } as any);
-
-    if (error) {
-      console.error('Error saving state:', error);
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error saving state:', error);
-    throw error;
-  }
+  const stored = localStorage.getItem(`crisis-state-${sessionId}`);
+  return stored ? JSON.parse(stored) : getDefaultState();
 }
 
 export async function resetSession(currentSessionId: string): Promise<string> {
-  try {
-    // Delete app_state record
-    await supabase
-      .from('app_state')
-      .delete()
-      .eq('session_id', currentSessionId);
-
-    // Delete resources records
-    await supabase
-      .from('resources')
-      .delete()
-      .eq('session_id', currentSessionId);
-
-    // Delete files from storage bucket
-    const { data: files } = await supabase.storage
-      .from('resources')
-      .list(currentSessionId);
-
-    if (files && files.length > 0) {
-      const filePaths = files.map(file => `${currentSessionId}/${file.name}`);
-      await supabase.storage
-        .from('resources')
-        .remove(filePaths);
-    }
-
-    // Generate new session ID
-    const newSessionId = generateSessionId();
-    localStorage.setItem(SESSION_ID_KEY, newSessionId);
-
-    return newSessionId;
-  } catch (error) {
-    console.error('Error resetting session:', error);
-    throw error;
-  }
-}
-
-export function exportJSON(state: AppState): void {
-  const dataStr = JSON.stringify(state, null, 2);
-  const dataBlob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(dataBlob);
-  
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `crisis-session-${new Date().toISOString().slice(0, 19)}.json`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  
-  URL.revokeObjectURL(url);
+  localStorage.removeItem(`crisis-state-${currentSessionId}`);
+  const newSessionId = generateSessionId();
+  return newSessionId;
 }
 
 export async function importJSON(file: File): Promise<AppState> {

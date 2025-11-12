@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useNetworkStatus } from './useNetworkStatus';
 import { toast } from 'sonner';
 
@@ -83,43 +82,22 @@ export function useOfflineSync() {
   };
 
   const syncPendingOperations = async () => {
+    // No backend - clear all operations
     if (issyncing || !isOnline) return;
     
     setIsSyncing(true);
-    toast.info('Synchronisation en cours...');
 
     try {
-      for (const op of pendingOps) {
-        try {
-          let result;
-          switch (op.operation) {
-            case 'insert':
-              result = await (supabase as any).from(op.table).insert(op.data);
-              break;
-            case 'update':
-              result = await (supabase as any).from(op.table).update(op.data).eq('client_op_id', op.client_op_id);
-              break;
-            case 'delete':
-              result = await (supabase as any).from(op.table).delete().eq('client_op_id', op.client_op_id);
-              break;
-          }
-          
-          if (result?.error) {
-            console.error('Sync error for operation:', op, result.error);
-          } else {
-            await removePendingOperation(op.id);
-          }
-        } catch (error) {
-          console.error('Failed to sync operation:', op, error);
-        }
-      }
-      
-      if (pendingOps.length > 0) {
-        toast.success('Synchronisation terminée');
-      }
+      const request = indexedDB.open('CrisisOfflineDB', 1);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(['pendingOps'], 'readwrite');
+        const store = transaction.objectStore('pendingOps');
+        store.clear();
+        setPendingOps([]);
+      };
     } catch (error) {
-      console.error('Sync failed:', error);
-      toast.error('Erreur de synchronisation');
+      console.error('Failed to clear pending operations:', error);
     } finally {
       setIsSyncing(false);
     }

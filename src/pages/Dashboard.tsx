@@ -17,11 +17,10 @@ import {
   Gavel
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function Dashboard() {
-  const { state, updateState, sessionId, refreshState } = useCrisisState();
+  const { state, updateState, sessionId } = useCrisisState();
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [newContact, setNewContact] = useState({
     name: "",
@@ -30,27 +29,6 @@ export function Dashboard() {
     phone: ""
   });
 
-  // Real-time updates for RIDA entries
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const channel = supabase
-      .channel('dashboard-rida-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'rida_entry',
-        filter: `session_id=eq.${sessionId}`
-      }, () => {
-        // Refresh state when RIDA entries change
-        refreshState();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [sessionId, refreshState]);
 
   // Calculate KPIs
   const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
