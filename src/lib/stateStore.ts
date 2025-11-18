@@ -28,8 +28,10 @@ export interface AppState {
     description: string;
     status: 'todo' | 'doing' | 'done';
     owner: string;
+    priority?: 'low' | 'med' | 'high';
     dueAt: string | null;
     createdAt: string;
+    updatedAt?: string;
     position: number;
   }>;
   decisions: Array<{
@@ -67,9 +69,11 @@ export interface AppState {
 }
 
 const SESSION_ID_KEY = 'crisis_session_id';
+const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined;
+const API_BASE_URL = (import.meta.env.VITE_CRISIS_API_URL as string | undefined) || 'http://127.0.0.1:4000';
+const API_STATE_ENDPOINT = `${API_BASE_URL.replace(/\/$/, '')}/api/state`;
 
 export function generateSessionId(): string {
-  // Récupère l’API crypto du navigateur si elle existe
   const globalCrypto =
     typeof window !== 'undefined'
       ? window.crypto
@@ -77,12 +81,10 @@ export function generateSessionId(): string {
       ? (globalThis as any).crypto
       : undefined;
 
-  // Cas “propre” : contexte sécurisé (https ou localhost) + randomUUID dispo
   if (globalCrypto && 'randomUUID' in globalCrypto) {
     return (globalCrypto as Crypto).randomUUID();
   }
 
-  // Fallback pour http://IP:8080 et autres contextes non sécurisés
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -90,13 +92,12 @@ export function generateSessionId(): string {
   });
 }
 
-
 export function getOrCreateSessionId(): string {
-  let sessionId = localStorage.getItem(SESSION_ID_KEY);
+  let sessionId = DEFAULT_SESSION_ID || localStorage.getItem(SESSION_ID_KEY);
   if (!sessionId) {
     sessionId = generateSessionId();
-    localStorage.setItem(SESSION_ID_KEY, sessionId);
   }
+  localStorage.setItem(SESSION_ID_KEY, sessionId);
   return sessionId;
 }
 
@@ -134,15 +135,99 @@ export function getDefaultState(): AppState {
   };
 }
 
+function readLocalState(sessionId: string): AppState | null {
+  try {
+    const stored = localStorage.getItem(`crisis-state-${sessionId}`);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.error('Error reading local state:', error);
+    return null;
+  }
+}
+
+async function fetchRemoteState(sessionId: string): Promise<AppState | null> {
+  try {
+    const response = await fetch(`${API_STATE_ENDPOINT}?sessionId=${encodeURIComponent(sessionId)}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch remote state');
+    }
+    const data = await response.json();
+    return data.state || null;
+  } catch (error) {
+    console.warn('Unable to fetch remote state:', error);
+    return null;
+  }
+}
+
+async function persistRemoteState(sessionId: string, state: AppState): Promise<void> {
+  const response = await fetch(API_STATE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ sessionId, state })
+  });
+  if (!response.ok) {
+    throw new Error('Failed to persist remote state');
+  }
+}
+
+async function deleteRemoteState(sessionId: string): Promise<void> {
+  try {
+    await fetch(`${API_STATE_ENDPOINT}/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE'
+    });
+  } catch (error) {
+    console.warn('Unable to delete remote state:', error);
+  }
+}
+
 export async function loadState(sessionId: string): Promise<AppState> {
-  const stored = localStorage.getItem(`crisis-state-${sessionId}`);
-  return stored ? JSON.parse(stored) : getDefaultState();
+  const remoteState = await fetchRemoteState(sessionId);
+  if (remoteState) {
+    localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remoteState));
+    return remoteState;
+  }
+
+  const localState = readLocalState(sessionId);
+  if (localState) {
+    try {
+      await persistRemoteState(sessionId, localState);
+    } catch (error) {
+      console.warn('Unable to sync local state to remote:', error);
+    }
+    return localState;
+  }
+
+  const defaultState = getDefaultState();
+  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(defaultState));
+  try {
+    await persistRemoteState(sessionId, defaultState);
+  } catch (error) {
+    console.warn('Unable to persist default state remotely:', error);
+  }
+  return defaultState;
+}
+
+export async function saveState(sessionId: string, state: AppState): Promise<void> {
+  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(state));
+  await persistRemoteState(sessionId, state);
+}
+
+export async function deleteState(sessionId: string): Promise<void> {
+  localStorage.removeItem(`crisis-state-${sessionId}`);
+  await deleteRemoteState(sessionId);
 }
 
 export async function resetSession(currentSessionId: string): Promise<string> {
-  localStorage.removeItem(`crisis-state-${currentSessionId}`);
-  const newSessionId = generateSessionId();
+  await deleteState(currentSessionId);
+  const newSessionId = DEFAULT_SESSION_ID || generateSessionId();
+  localStorage.setItem(SESSION_ID_KEY, newSessionId);
   return newSessionId;
+}
+
+export async function fetchRemoteSnapshot(sessionId: string): Promise<AppState | null> {
+  return fetchRemoteState(sessionId);
 }
 
 export async function importJSON(file: File): Promise<AppState> {

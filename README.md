@@ -71,3 +71,13 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Run everything with Docker Compose
+
+Build and run the multi-user stack (frontend + state API) locally with Docker Compose:
+
+```sh
+docker compose up --build
+```
+
+This will expose the Crisis Labs UI on port `8080` and the shared state API on port `4000`. The session state is stored inside a named Docker volume (`crisis_state_data`) so restarting the stack on a Linux server preserves previously recorded crises.
