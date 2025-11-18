@@ -50,6 +50,21 @@ app.post("/api/state", (req, res) => {
   res.json({ ok: true });
 });
 
+app.delete("/api/state/:sessionId", (req, res) => {
+  const { sessionId } = req.params;
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId is required" });
+  }
+
+  const all = loadAllSessions();
+  if (all.sessions[sessionId]) {
+    delete all.sessions[sessionId];
+    saveAllSessions(all);
+  }
+
+  res.json({ ok: true });
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Crisis API server listening on http://0.0.0.0:${PORT}`);
 });

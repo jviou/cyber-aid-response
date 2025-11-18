@@ -14,7 +14,7 @@ import {
   Save
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { importJSON, resetSession } from "@/lib/stateStore";
+import { importJSON, resetSession, saveState } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
@@ -76,10 +76,11 @@ export function SessionHeader() {
 
   const handleSave = async () => {
     try {
-      localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(state));
+      await saveState(sessionId, state);
       toast.success("Session sauvegardée");
     } catch (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      console.error('Error saving session:', error);
+      toast.error("Erreur lors de la sauvegarde distante");
     }
   };
 
