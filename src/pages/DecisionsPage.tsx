@@ -1,0 +1,453 @@
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Clock, Info, CheckCircle, AlertCircle } from "lucide-react";
+import { useCrisisState } from "@/hooks/useCrisisState";
+import { Decision } from "@/types/crisis";
+import { toast } from "sonner";
+
+/** -------- Types RIDA (extension légère des Decision) -------- */
+type RidaType = "I" | "D" | "A";
+type RidaStatus = "À initier" | "En cours" | "En pause" | "En retard" | "Bloqué" | "Terminé";
+
+// On étend localement Decision pour TypeScript sans forcer une modif globale immédiate
+type DecisionRida = Decision & {
+  kind?: RidaType;
+  status?: RidaStatus;
+  dueDate?: string;
+  owner?: string;
+};
+
+/** -------- Helpers UI -------- */
+function TypeIcon({ t }: { t: RidaType }) {
+  if (t === "I") return <Info className="w-4 h-4 text-blue-600" />;
+  if (t === "D") return <CheckCircle className="w-4 h-4 text-green-600" />;
+  return <AlertCircle className="w-4 h-4 text-orange-600" />;
+}
+
+function statusBg(status: RidaStatus) {
+  switch (status) {
+    case "À initier": return "bg-gray-100";
+    case "En cours": return "bg-yellow-100";
+    case "En pause": return "bg-orange-100";
+    case "En retard": return "bg-blue-100";
+    case "Bloqué": return "bg-red-100";
+    case "Terminé": return "bg-green-100";
+    default: return "bg-gray-100";
+  }
+}
+
+function statusBadgeVariant(status: RidaStatus) {
+  switch (status) {
+    case "En retard":
+    case "Bloqué":
+      return "destructive";
+    case "En pause":
+      return "secondary";
+    case "En cours":
+    case "Terminé":
+      return "default";
+    default:
+      return "outline";
+  }
+}
+
+/** -------- Page -------- */
+export function DecisionsPage() {
+  const { state, updateState } = useCrisisState();
+
+  // Liste RIDA = state.decisions trié récent → ancien
+  const rida: DecisionRida[] = useMemo(
+    () =>
+      [...state.decisions].sort(
+        (a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime()
+      ),
+    [state.decisions]
+  );
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Formulaire d’ajout
+  const [draft, setDraft] = useState<{
+    subject: string;
+    type: RidaType;
+    description: string;
+    owner: string;
+    status: RidaStatus;
+    dueDate: string;
+  }>({
+    subject: "",
+    type: "D",
+    description: "",
+    owner: "",
+    status: "À initier",
+    dueDate: "",
+  });
+
+  /** Ajout */
+  const onAdd = () => {
+    if (!draft.subject.trim() || !draft.description.trim()) {
+      toast.error("Sujet et description sont requis");
+      return;
+    }
+    const id = crypto.randomUUID();
+    const decidedAt = new Date().toISOString();
+
+    const newDecision: DecisionRida = {
+      id,
+      title: draft.subject.trim(),
+      decidedAt,
+      rationale: draft.description.trim(),
+      owner: draft.owner.trim() || undefined,
+      kind: draft.type,
+      status: draft.status,
+      dueDate: draft.type === "A" && draft.dueDate ? draft.dueDate : undefined,
+    };
+
+    updateState((prev) => ({
+      ...prev,
+      decisions: [...prev.decisions, newDecision],
+    }));
+
+    setDraft({ subject: "", type: "D", description: "", owner: "", status: "À initier", dueDate: "" });
+    setIsAddOpen(false);
+    toast.success("Élément RIDA ajouté");
+  };
+
+  /** Suppression */
+  const onDelete = (id: string) => {
+    if (!confirm("Supprimer cet élément ?")) return;
+    updateState((prev) => ({
+      ...prev,
+      decisions: prev.decisions.filter((d) => d.id !== id),
+    }));
+    if (selectedId === id) setSelectedId(null);
+    toast.success("Élément supprimé");
+  };
+
+  /** Changement de statut */
+  const onUpdateStatus = (id: string, newStatus: RidaStatus) => {
+    updateState((prev) => ({
+      ...prev,
+      decisions: prev.decisions.map((d) =>
+        d.id === id ? ({ ...d, status: newStatus } as DecisionRida) : (d as DecisionRida)
+      ),
+    }));
+  };
+
+  const selected = (selectedId && rida.find((d) => d.id === selectedId)) || null;
+
+  return (
+    <div className="space-y-6">
+      {/* Header + explication */}
+      <div className="bg-gradient-to-r from-pink-200 to-purple-200 p-6 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Relevé des Informations, Décisions & Actions (RIDA)
+            </h1>
+            <p className="text-gray-600 mt-2 max-w-4xl">
+              Le RIDA est un outil de gestion de projet qui permet de retrouver les différentes
+              informations transmises lors d'une crise dans un document. Ces informations sont le
+              point de départ de décisions à prendre en équipe, et d'actions à réaliser.
+            </p>
+          </div>
+
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvel élément
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Nouvel élément RIDA</DialogTitle>
+                <DialogDescription>
+                  Ajouter une information, décision ou action au relevé
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Sujet</Label>
+                    <Input
+                      value={draft.subject}
+                      onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                      placeholder="Investigations, Messagerie, etc."
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Type</Label>
+                    <Select
+                      value={draft.type}
+                      onValueChange={(v: RidaType) => setDraft({ ...draft, type: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="I">I - Information</SelectItem>
+                        <SelectItem value="D">D - Décision</SelectItem>
+                        <SelectItem value="A">A - Action</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={draft.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    placeholder="Description détaillée…"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label>Porteur</Label>
+                    <Input
+                      value={draft.owner}
+                      onChange={(e) => setDraft({ ...draft, owner: e.target.value })}
+                      placeholder="Responsable"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>État</Label>
+                    <Select
+                      value={draft.status}
+                      onValueChange={(v: RidaStatus) => setDraft({ ...draft, status: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="À initier">À initier</SelectItem>
+                        <SelectItem value="En cours">En cours</SelectItem>
+                        <SelectItem value="En pause">En pause</SelectItem>
+                        <SelectItem value="En retard">En retard</SelectItem>
+                        <SelectItem value="Bloqué">Bloqué</SelectItem>
+                        <SelectItem value="Terminé">Terminé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {draft.type === "A" && (
+                  <div className="grid gap-2">
+                    <Label>Échéance (optionnel)</Label>
+                    <Input
+                      type="date"
+                      value={draft.dueDate}
+                      onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
+                    />
+                  </div>
+                )}
+
+                <Button onClick={onAdd} className="w-full">Ajouter l’élément</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Le relevé comprend … */}
+        <div className="mt-4 text-sm text-gray-700">
+          <p className="mb-2 font-medium">Le relevé comprend :</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <p>• <strong>Information</strong> : l’élément factuel diffusé à tous les membres de la cellule</p>
+            <p>• <strong>Décision</strong> : les décisions prises pour faire avancer la crise par la cellule décisionnelle</p>
+            <p>• <strong>Action</strong> : les tâches à réaliser pour parvenir à un résultat</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tableau RIDA */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Tableau RIDA</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-purple-100">
+                  <TableHead className="w-24">Date</TableHead>
+                  <TableHead className="w-20">Heure</TableHead>
+                  <TableHead className="w-32">Sujet</TableHead>
+                  <TableHead className="w-8 text-center">I</TableHead>
+                  <TableHead className="w-8 text-center">D</TableHead>
+                  <TableHead className="w-8 text-center">A</TableHead>
+                  <TableHead className="w-40">Échéance</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-28">Porteur</TableHead>
+                  <TableHead className="w-28">État</TableHead>
+                  <TableHead className="w-12" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rida.map((d) => {
+                  const dt = new Date(d.decidedAt);
+                  const date = dt.toLocaleDateString("fr-FR");
+                  const time = dt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                  const kind = (d.kind ?? "D") as RidaType;
+                  const status = (d.status ?? "À initier") as RidaStatus;
+
+                  return (
+                    <TableRow
+                      key={d.id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedId(d.id)}
+                    >
+                      <TableCell className="font-medium">{date}</TableCell>
+                      <TableCell>{time}</TableCell>
+                      <TableCell className="font-medium">{d.title}</TableCell>
+                      <TableCell className="text-center">{kind === "I" && <TypeIcon t="I" />}</TableCell>
+                      <TableCell className="text-center">{kind === "D" && <TypeIcon t="D" />}</TableCell>
+                      <TableCell className="text-center">{kind === "A" && <TypeIcon t="A" />}</TableCell>
+                      <TableCell>{d.dueDate || "-"}</TableCell>
+                      <TableCell className="max-w-md">
+                        <p className="text-sm line-clamp-2">{d.rationale}</p>
+                      </TableCell>
+                      <TableCell>{d.owner || ""}</TableCell>
+                      <TableCell>
+                        <Select value={status} onValueChange={(v: RidaStatus) => onUpdateStatus(d.id, v)}>
+                          <SelectTrigger className={`w-full text-xs ${statusBg(status)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="À initier">À initier</SelectItem>
+                            <SelectItem value="En cours">En cours</SelectItem>
+                            <SelectItem value="En pause">En pause</SelectItem>
+                            <SelectItem value="En retard">En retard</SelectItem>
+                            <SelectItem value="Bloqué">Bloqué</SelectItem>
+                            <SelectItem value="Terminé">Terminé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); onDelete(d.id); }}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          aria-label="Supprimer"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {rida.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucun élément dans le relevé pour l’instant
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Instructions */}
+      <Card className="bg-blue-50">
+        <CardContent className="pt-6">
+          <h3 className="font-medium mb-3">Instructions d'utilisation du RIDA</h3>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p><strong>1.</strong> Notez de manière abrégée les informations, décisions et actions abordées en cellule de crise.</p>
+            <p><strong>2.</strong> Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ? Indiquez un I, D, ou A dans la colonne Type correspondante.</p>
+            <p><strong>3.</strong> Notez qui est l'acteur/le porteur associé à ce sujet.</p>
+            <p><strong>4.</strong> Précisez la date d'échéance s'il s'agit d'une action.</p>
+            <p><strong>5.</strong> Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions à réaliser pour faire le point d'avancement de ces actions.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Détail */}
+      <Dialog open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedId && <TypeIcon t={(selected?.kind ?? "D") as RidaType} />}
+              {selected?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {(selected?.kind ?? "D") === "I" && "Information"}
+              {(selected?.kind ?? "D") === "D" && "Décision"}
+              {(selected?.kind ?? "D") === "A" && "Action"} · Ajouté le{" "}
+              {selected && new Date(selected.decidedAt).toLocaleDateString("fr-FR")} à{" "}
+              {selected && new Date(selected.decidedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selected && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Porteur</Label>
+                  <p className="text-sm mt-1">{selected.owner || "Non assigné"}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">État</Label>
+                  <div className="mt-1">
+                    <Badge
+                      variant={statusBadgeVariant((selected.status ?? "À initier") as RidaStatus)}
+                      className={`${statusBg((selected.status ?? "À initier") as RidaStatus)} text-black`}
+                    >
+                      {(selected.status ?? "À initier") as RidaStatus}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {selected.dueDate && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Échéance</Label>
+                  <p className="text-sm mt-1 flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    {selected.dueDate}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Description complète</Label>
+                <div className="mt-2 p-3 bg-muted rounded-md">
+                  <p className="text-sm whitespace-pre-wrap">{selected.rationale}</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedId(null)}>Fermer</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
