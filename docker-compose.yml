@@ -20,8 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_CRISIS_API_URL: http://crisis-api:4000
-        # >>> ID DE SESSION PARTAGÉ ENTRE TOUS LES POSTES <<<
+        VITE_CRISIS_API_URL: "http://crisis-api:4000"
         VITE_DEFAULT_SESSION_ID: "crisis-session-001"
     container_name: crisis-frontend
     restart: unless-stopped
