@@ -1,15 +1,16 @@
 // src/lib/stateStore.ts
-// Pas de Supabase : stockage local + API Node simple
+// Stockage de l’état + sync avec une petite API Node (crisis-api-server.js)
+
+import { defaultPhases } from "@/data/crisisData";
 
 // ===== Types d'état =========================================================
 
 export interface AppState {
   meta: {
     title: string;
-    mode: 'real' | 'exercise';
-    severity: 'Low' | 'Modérée' | 'Élevée' | 'Critique';
+    mode: "real" | "exercise";
+    severity: "Low" | "Modérée" | "Élevée" | "Critique";
     createdAt: string;
-    updatedAt: string;
   };
   contacts: Array<{
     id: string;
@@ -21,7 +22,14 @@ export interface AppState {
   journal: Array<{
     id: string;
     at: string;
-    category: 'incident' | 'action' | 'decision' | 'communication' | 'technical' | 'legal' | 'note';
+    category:
+      | "incident"
+      | "action"
+      | "decision"
+      | "communication"
+      | "technical"
+      | "legal"
+      | "note";
     title: string;
     details: string;
   }>;
@@ -29,9 +37,9 @@ export interface AppState {
     id: string;
     title: string;
     description: string;
-    status: 'todo' | 'doing' | 'done';
+    status: "todo" | "doing" | "done";
     owner: string;
-    priority?: 'low' | 'med' | 'high';
+    priority?: "low" | "med" | "high";
     dueAt: string | null;
     createdAt: string;
     updatedAt?: string;
@@ -43,7 +51,13 @@ export interface AppState {
     rationale: string;
     owner?: string;
     decidedAt: string;
-    status?: 'À initier' | 'En cours' | 'En pause' | 'En retard' | 'Bloqué' | 'Terminé';
+    status?:
+      | "À initier"
+      | "En cours"
+      | "En pause"
+      | "En retard"
+      | "Bloqué"
+      | "Terminé";
   }>;
   communications: Array<{
     id: string;
@@ -53,7 +67,7 @@ export interface AppState {
     sentAt: string;
   }>;
   phases: Array<{
-    id: 'P1' | 'P2' | 'P3' | 'P4';
+    id: "P1" | "P2" | "P3" | "P4";
     title: string;
     strategic: Array<{
       id: string;
@@ -72,168 +86,78 @@ export interface AppState {
   }>;
 }
 
-// ===== Config API ===========================================================
+// ===== Config / session =====================================================
 
-const SESSION_ID_KEY = 'crisis_session_id';
-const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined;
-const configuredApiUrl = (import.meta.env.VITE_CRISIS_API_URL as string | undefined)?.trim();
-const DEFAULT_API_BASE = 'http://crisis-api:4000';
-const API_BASE_URL = (configuredApiUrl && configuredApiUrl !== '' ? configuredApiUrl : DEFAULT_API_BASE).replace(/\/$/, '');
-const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
-const STORAGE_KEY_PREFIX = 'crisis-state-';
+const SESSION_ID_KEY = "crisis_session_id";
 
-export interface LoadStateOptions {
-  onRemoteLoadError?: (error: Error) => void;
-  onRemoteLoadSuccess?: () => void;
-}
-
-export interface SaveStateOptions {
-  onRemoteSaveError?: (error: Error) => void;
-  onRemoteSaveSuccess?: () => void;
-}
-
-// ID de session par défaut (permet de forcer tout le monde sur la même)
-const DEFAULT_SESSION_ID = (import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined) || 'crisis-session-001';
-
-const configuredApiUrl = (import.meta.env.VITE_CRISIS_API_URL as string | undefined)?.trim();
-const API_STATE_PATH = '/api/state';
-
-function buildApiBaseCandidates(): string[] {
-  const bases: string[] = [];
-  const seen = new Set<string>();
-
-  const add = (value?: string | null) => {
-    if (!value && value !== '') return;
-    const trimmed = value.trim();
-    // '' = même origine
-    const normalized = trimmed === '' ? '' : trimmed.replace(/\/$/, '');
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    bases.push(normalized);
-  };
-
-  // 1) Valeur de VITE_CRISIS_API_URL si définie (dev .env.local par ex.)
-  if (configuredApiUrl) add(configuredApiUrl);
-
-  if (typeof window !== 'undefined' && window.location) {
-    const { protocol, hostname } = window.location;
-
-    // 2) Même origine (proxy inverse éventuel)
-    add('');
-
-    // 3) Même host, port 4000 (cas Docker : front 8069, API 4000)
-    add(`${protocol}//${hostname}:4000`);
-  }
-
-  // 4) Fallback : localhost:4000
-  add('http://127.0.0.1:4000');
-
-  return bases;
-}
-
-const API_BASE_CANDIDATES = buildApiBaseCandidates();
-let preferredApiBase: string | null = null;
-
-async function fetchWithApi(path: string, init?: RequestInit) {
-  const tried = new Set<string>();
-
-  const ordered = preferredApiBase
-    ? [preferredApiBase, ...API_BASE_CANDIDATES.filter((b) => b !== preferredApiBase)]
-    : API_BASE_CANDIDATES;
-
-  let lastError: unknown = null;
-
-  for (const base of ordered) {
-    if (tried.has(base)) continue;
-    tried.add(base);
-
-    const url = `${base}${path}`;
-    try {
-      const res = await fetch(url, init);
-
-      // 1) Statut HTTP OK ?
-      if (!res.ok) {
-        lastError = new Error(`Request failed with status ${res.status} for ${url}`);
-        continue;
-      }
-
-      // 2) Vérifier qu'on parle bien à l'API (JSON), pas au frontend (HTML)
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        lastError = new Error(`Non-JSON response from ${url} (${contentType})`);
-        continue;
-      }
-
-      preferredApiBase = base;
-      return res;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError ?? new Error('Unable to reach crisis API');
-}
-
-// ===== Génération d'ID de session ==========================================
+// ID de session par défaut : tout le monde verra la même session
+const DEFAULT_SESSION_ID =
+  (import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined) ||
+  "crisis-session-001";
 
 export function generateSessionId(): string {
   const globalCrypto =
-    typeof window !== 'undefined'
+    typeof window !== "undefined"
       ? window.crypto
-      : typeof globalThis !== 'undefined'
+      : typeof globalThis !== "undefined"
       ? (globalThis as any).crypto
       : undefined;
 
-  if (globalCrypto && 'randomUUID' in globalCrypto) {
+  if (globalCrypto && "randomUUID" in globalCrypto) {
     return (globalCrypto as Crypto).randomUUID();
   }
 
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
 
 export function getOrCreateSessionId(): string {
-  let sessionId = DEFAULT_SESSION_ID || localStorage.getItem(SESSION_ID_KEY);
+  if (typeof window === "undefined") {
+    // sécurité SSR / build
+    return DEFAULT_SESSION_ID;
+  }
+
+  let sessionId =
+    DEFAULT_SESSION_ID || window.localStorage.getItem(SESSION_ID_KEY);
   if (!sessionId) {
     sessionId = generateSessionId();
   }
-  localStorage.setItem(SESSION_ID_KEY, sessionId);
+  window.localStorage.setItem(SESSION_ID_KEY, sessionId);
   return sessionId;
 }
 
 // ===== État par défaut ======================================================
 
-import { defaultPhases } from '@/data/crisisData';
-
 export function getDefaultState(): AppState {
-  const now = new Date().toISOString();
   return {
     meta: {
-      title: 'Nouvelle Session de Crise',
-      mode: 'exercise',
-      severity: 'Modérée',
+      title: "Nouvelle Session de Crise",
+      mode: "exercise",
+      severity: "Modérée",
       createdAt: new Date().toISOString(),
     },
     contacts: [],
+    journal: [],
+    actions: [],
     decisions: [],
     communications: [],
     phases: defaultPhases.map((p) => ({
-      id: p.id as 'P1' | 'P2' | 'P3' | 'P4',
-      title: `${p.title} - ${p.subtitle || ''}`.trim(),
+      id: p.id as "P1" | "P2" | "P3" | "P4",
+      title: `${p.title} - ${p.subtitle || ""}`.trim(),
       strategic: (p.checklist?.strategic || []).map((item) => ({
         id: item.id,
         text: item.text,
-        checked: item.status === 'done',
+        checked: item.status === "done",
         assignee: null,
         dueAt: null,
       })),
       operational: (p.checklist?.operational || []).map((item) => ({
         id: item.id,
         text: item.text,
-        checked: item.status === 'done',
+        checked: item.status === "done",
         assignee: null,
         dueAt: null,
       })),
@@ -241,8 +165,11 @@ export function getDefaultState(): AppState {
   };
 }
 
-// Petite sécurité si un JSON part en vrille
-function sanitizeState(rawState?: Partial<AppState> | null): AppState {
+// ===== Sanitize =============================================================
+
+export function sanitizeState(
+  rawState?: Partial<AppState> | null
+): AppState {
   const fallback = getDefaultState();
   if (!rawState) return fallback;
 
@@ -257,122 +184,206 @@ function sanitizeState(rawState?: Partial<AppState> | null): AppState {
     journal: Array.isArray(rawState.journal) ? rawState.journal : [],
     actions: Array.isArray(rawState.actions) ? rawState.actions : [],
     decisions: Array.isArray(rawState.decisions) ? rawState.decisions : [],
-    communications: Array.isArray(rawState.communications) ? rawState.communications : [],
-    phases: Array.isArray(rawState.phases) ? rawState.phases : fallback.phases,
+    communications: Array.isArray(rawState.communications)
+      ? rawState.communications
+      : [],
+    phases: Array.isArray(rawState.phases)
+      ? rawState.phases
+      : fallback.phases,
   };
 }
 
 // ===== LocalStorage =========================================================
 
 function readLocalState(sessionId: string): AppState | null {
+  if (typeof window === "undefined") return null;
   try {
-    const stored = localStorage.getItem(`crisis-state-${sessionId}`);
+    const stored = window.localStorage.getItem(
+      `crisis-state-${sessionId}`
+    );
     return stored ? sanitizeState(JSON.parse(stored)) : null;
   } catch (err) {
-    console.error('Error reading local state:', err);
+    console.error("Error reading local state:", err);
     return null;
+  }
+}
+
+function writeLocalState(sessionId: string, state: AppState) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      `crisis-state-${sessionId}`,
+      JSON.stringify(state)
+    );
+  } catch (err) {
+    console.error("Error writing local state:", err);
   }
 }
 
 // ===== API distante =========================================================
 
-async function fetchRemoteState(sessionId: string): Promise<AppState | null> {
+const configuredApiUrl = (import.meta.env.VITE_CRISIS_API_URL as
+  | string
+  | undefined)?.trim();
+const API_STATE_PATH = "/api/state";
+
+function buildApiBaseCandidates(): string[] {
+  const bases: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value?: string | null) => {
+    if (value == null) return;
+    const trimmed = value.trim();
+    const normalized = trimmed === "" ? "" : trimmed.replace(/\/$/, "");
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    bases.push(normalized);
+  };
+
+  if (configuredApiUrl) add(configuredApiUrl);
+
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname } = window.location;
+    add(""); // même origine
+    add(`${protocol}//${hostname}:4000`); // cas Docker
+  }
+
+  add("http://127.0.0.1:4000");
+  return bases;
+}
+
+const API_BASE_CANDIDATES = buildApiBaseCandidates();
+let preferredApiBase: string | null = null;
+
+async function fetchWithApi(path: string, init?: RequestInit) {
+  const tried = new Set<string>();
+  const ordered = preferredApiBase
+    ? [preferredApiBase, ...API_BASE_CANDIDATES.filter((b) => b !== preferredApiBase)]
+    : API_BASE_CANDIDATES;
+
+  let lastError: unknown = null;
+
+  for (const base of ordered) {
+    if (tried.has(base)) continue;
+    tried.add(base);
+
+    const url = `${base}${path}`;
+    try {
+      const res = await fetch(url, init);
+      if (!res.ok) {
+        lastError = new Error(
+          `Request failed with status ${res.status} for ${url}`
+        );
+        continue;
+      }
+      preferredApiBase = base;
+      return res;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError ?? new Error("Unable to reach crisis API");
+}
+
+export async function fetchRemoteState(
+  sessionId: string
+): Promise<AppState | null> {
   try {
-    const res = await fetchWithApi(`${API_STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`);
-    const data = await res.json();
-    return data?.state ? sanitizeState(data.state) : null;
+    const res = await fetchWithApi(
+      `${API_STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`
+    );
+    const data = await res.json().catch(() => null);
+    if (!data || typeof data !== "object") return null;
+    return data.state ? sanitizeState(data.state) : null;
   } catch (error) {
-    console.warn('Unable to fetch remote state via available endpoints:', error);
+    console.warn(
+      "Unable to fetch remote state via available endpoints:",
+      error
+    );
     return null;
   }
 }
 
-async function persistRemoteState(sessionId: string, state: AppState): Promise<void> {
-  const res = await fetchWithApi(API_STATE_PATH, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, state }),
-  });
-  if (!res.ok) {
-    throw new Error('Failed to persist remote state');
-  }
-}
-
-async function deleteRemoteState(sessionId: string): Promise<void> {
+export async function persistRemoteState(
+  sessionId: string,
+  state: AppState
+): Promise<void> {
   try {
-    await fetchWithApi(`${API_STATE_PATH}/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+    const res = await fetchWithApi(API_STATE_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, state }),
+    });
+    if (!res.ok) {
+      console.warn("Failed to persist remote state, status:", res.status);
+    }
   } catch (error) {
-    console.warn('Unable to delete remote state:', error);
+    console.warn("Unable to persist remote state:", error);
   }
 }
 
-// ===== API publique utilisée par le hook ====================================
+export async function deleteRemoteState(
+  sessionId: string
+): Promise<void> {
+  try {
+    await fetchWithApi(
+      `${API_STATE_PATH}/${encodeURIComponent(sessionId)}`,
+      { method: "DELETE" }
+    );
+  } catch (error) {
+    console.warn("Unable to delete remote state:", error);
+  }
+}
+
+// ===== API publique pour le hook ===========================================
 
 export async function loadState(sessionId: string): Promise<AppState> {
   // 1) Essayer la version distante
   const remote = await fetchRemoteState(sessionId);
   if (remote) {
-    localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
+    writeLocalState(sessionId, remote);
     return remote;
   }
 
   // 2) Sinon, tomber sur le local
   const local = readLocalState(sessionId);
   if (local) {
-    try {
-      await persistRemoteState(sessionId, local);
-    } catch (error) {
-      console.warn('Unable to sync local state to remote:', error);
-    }
+    // Best effort : pousse le local vers le serveur
+    await persistRemoteState(sessionId, local);
     return local;
   }
 
-  // 3) Sinon, créer un état par défaut
+  // 3) Sinon, état par défaut
   const def = getDefaultState();
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(def));
-  try {
-    await persistRemoteState(sessionId, def);
-  } catch (error) {
-    console.warn('Unable to persist default state remotely:', error);
-  }
+  writeLocalState(sessionId, def);
+  await persistRemoteState(sessionId, def);
   return def;
 }
 
-export async function saveState(sessionId: string, state: AppState): Promise<void> {
+export async function saveState(
+  sessionId: string,
+  state: AppState
+): Promise<void> {
   const sanitized = sanitizeState(state);
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitized));
+  writeLocalState(sessionId, sanitized);
   await persistRemoteState(sessionId, sanitized);
 }
 
-export async function deleteState(sessionId: string): Promise<void> {
-  localStorage.removeItem(`crisis-state-${sessionId}`);
-  await deleteRemoteState(sessionId);
-}
-
-export async function resetSession(currentSessionId: string): Promise<string> {
-  await deleteState(currentSessionId);
+export async function resetSession(
+  currentSessionId: string
+): Promise<string> {
+  writeLocalState(currentSessionId, getDefaultState());
+  await deleteRemoteState(currentSessionId);
   const newSessionId = DEFAULT_SESSION_ID || generateSessionId();
-  localStorage.setItem(SESSION_ID_KEY, newSessionId);
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(SESSION_ID_KEY, newSessionId);
+  }
   return newSessionId;
 }
 
-export async function fetchRemoteSnapshot(sessionId: string): Promise<AppState | null> {
+export async function fetchRemoteSnapshot(
+  sessionId: string
+): Promise<AppState | null> {
   return fetchRemoteState(sessionId);
-}
-
-// Import JSON depuis fichier
-export async function importJSON(file: File): Promise<AppState> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const raw = JSON.parse(e.target?.result as string);
-        resolve(sanitizeState(raw));
-      } catch (error) {
-        reject(new Error('Invalid JSON file'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Error reading file'));
-    reader.readAsText(file);
-  });
 }
