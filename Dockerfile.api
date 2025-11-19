@@ -7,6 +7,7 @@ COPY crisis-api-server.js ./crisis-api-server.js
 
 ENV PORT=4000
 ENV CRISIS_STATE_DIR=/data
+ENV CRISIS_STATE_FILE=crisis-state.json
 
 VOLUME ["/data"]
 

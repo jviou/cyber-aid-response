@@ -27,7 +27,6 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveFailureRef = useRef(false);
   const lastSaveErrorToastRef = useRef(0);
-  const lastLoadErrorToastRef = useRef(0);
 
   // Load initial state
   useEffect(() => {
@@ -126,28 +125,20 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!sessionId) return;
 
-    let isFetching = false;
-
     const interval = setInterval(async () => {
-      if (isFetching) return;
-      isFetching = true;
-      try {
-        const remote = await fetchRemoteSnapshot(sessionId);
-        if (!remote) return;
+      const remote = await fetchRemoteSnapshot(sessionId);
+      if (!remote) return;
 
-        setState(prevState => {
-          const prevTime = new Date(prevState.meta.updatedAt || prevState.meta.createdAt).getTime();
-          const remoteTime = new Date(remote.meta.updatedAt || remote.meta.createdAt).getTime();
-          if (!remoteTime || remoteTime <= prevTime) {
-            return prevState;
-          }
+      setState(prevState => {
+        const prevHash = JSON.stringify(prevState);
+        const nextHash = JSON.stringify(remote);
+        if (prevHash === nextHash) {
+          return prevState;
+        }
 
-          localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
-          return remote;
-        });
-      } finally {
-        isFetching = false;
-      }
+        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
+        return remote;
+      });
     }, 5000);
 
     return () => clearInterval(interval);
