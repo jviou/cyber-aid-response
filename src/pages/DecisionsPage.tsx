@@ -23,28 +23,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Clock, Info, CheckCircle, AlertCircle } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { Decision } from "@/types/crisis";
+import type { AppState } from "@/lib/stateStore";
 import { toast } from "sonner";
 
-/** -------- Types RIDA (extension légère des Decision) -------- */
+/** -------- Types -------- */
 type RidaType = "I" | "D" | "A";
 type RidaStatus = "À initier" | "En cours" | "En pause" | "En retard" | "Bloqué" | "Terminé";
 
-// On étend localement Decision pour TypeScript sans forcer une modif globale immédiate
-type DecisionRida = Decision & {
+type DecisionRecord = AppState["decisions"][number] & {
   kind?: RidaType;
   status?: RidaStatus;
   dueDate?: string;
   owner?: string;
 };
 
-/** -------- Helpers UI -------- */
 function TypeIcon({ t }: { t: RidaType }) {
   if (t === "I") return <Info className="w-4 h-4 text-blue-600" />;
   if (t === "D") return <CheckCircle className="w-4 h-4 text-green-600" />;
   return <AlertCircle className="w-4 h-4 text-orange-600" />;
 }
 
+/** -------- Helpers UI -------- */
 function statusBg(status: RidaStatus) {
   switch (status) {
     case "À initier": return "bg-gray-100";
@@ -76,8 +75,7 @@ function statusBadgeVariant(status: RidaStatus) {
 export function DecisionsPage() {
   const { state, updateState } = useCrisisState();
 
-  // Liste RIDA = state.decisions trié récent → ancien
-  const rida: DecisionRida[] = useMemo(
+  const rida: DecisionRecord[] = useMemo(
     () =>
       [...state.decisions].sort(
         (a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime()
@@ -87,41 +85,29 @@ export function DecisionsPage() {
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  // Formulaire d’ajout
-  const [draft, setDraft] = useState<{
-    subject: string;
-    type: RidaType;
-    description: string;
-    owner: string;
-    status: RidaStatus;
-    dueDate: string;
-  }>({
+  const [draft, setDraft] = useState({
     subject: "",
-    type: "D",
+    type: "D" as RidaType,
     description: "",
     owner: "",
-    status: "À initier",
+    status: "À initier" as RidaStatus,
     dueDate: "",
   });
 
-  /** Ajout */
   const onAdd = () => {
     if (!draft.subject.trim() || !draft.description.trim()) {
       toast.error("Sujet et description sont requis");
       return;
     }
-    const id = crypto.randomUUID();
-    const decidedAt = new Date().toISOString();
 
-    const newDecision: DecisionRida = {
-      id,
+    const newDecision: DecisionRecord = {
+      id: crypto.randomUUID(),
       title: draft.subject.trim(),
-      decidedAt,
+      decidedAt: new Date().toISOString(),
       rationale: draft.description.trim(),
       owner: draft.owner.trim() || undefined,
-      kind: draft.type,
       status: draft.status,
+      kind: draft.type,
       dueDate: draft.type === "A" && draft.dueDate ? draft.dueDate : undefined,
     };
 
@@ -132,26 +118,24 @@ export function DecisionsPage() {
 
     setDraft({ subject: "", type: "D", description: "", owner: "", status: "À initier", dueDate: "" });
     setIsAddOpen(false);
-    toast.success("Élément RIDA ajouté");
+    toast.success("Décision ajoutée");
   };
 
-  /** Suppression */
   const onDelete = (id: string) => {
-    if (!confirm("Supprimer cet élément ?")) return;
+    if (!confirm("Supprimer cette décision ?")) return;
     updateState((prev) => ({
       ...prev,
       decisions: prev.decisions.filter((d) => d.id !== id),
     }));
     if (selectedId === id) setSelectedId(null);
-    toast.success("Élément supprimé");
+    toast.success("Décision supprimée");
   };
 
-  /** Changement de statut */
   const onUpdateStatus = (id: string, newStatus: RidaStatus) => {
     updateState((prev) => ({
       ...prev,
       decisions: prev.decisions.map((d) =>
-        d.id === id ? ({ ...d, status: newStatus } as DecisionRida) : (d as DecisionRida)
+        d.id === id ? ({ ...d, status: newStatus } as DecisionRecord) : (d as DecisionRecord)
       ),
     }));
   };
@@ -272,7 +256,6 @@ export function DecisionsPage() {
           </Dialog>
         </div>
 
-        {/* Le relevé comprend … */}
         <div className="mt-4 text-sm text-gray-700">
           <p className="mb-2 font-medium">Le relevé comprend :</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -302,7 +285,7 @@ export function DecisionsPage() {
                   <TableHead className="w-40">Échéance</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="w-28">Porteur</TableHead>
-                  <TableHead className="w-28">État</TableHead>
+                  <TableHead className="w-32">État</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -373,16 +356,24 @@ export function DecisionsPage() {
         </CardContent>
       </Card>
 
-      {/* Instructions */}
       <Card className="bg-blue-50">
         <CardContent className="pt-6">
           <h3 className="font-medium mb-3">Instructions d'utilisation du RIDA</h3>
           <div className="text-sm text-gray-600 space-y-2">
-            <p><strong>1.</strong> Notez de manière abrégée les informations, décisions et actions abordées en cellule de crise.</p>
-            <p><strong>2.</strong> Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ? Indiquez un I, D, ou A dans la colonne Type correspondante.</p>
+            <p>
+              <strong>1.</strong> Notez de manière abrégée les informations, décisions et actions abordées en cellule de
+              crise.
+            </p>
+            <p>
+              <strong>2.</strong> Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ?
+              Indiquez un I, D, ou A dans la colonne Type correspondante.
+            </p>
             <p><strong>3.</strong> Notez qui est l'acteur/le porteur associé à ce sujet.</p>
             <p><strong>4.</strong> Précisez la date d'échéance s'il s'agit d'une action.</p>
-            <p><strong>5.</strong> Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions à réaliser pour faire le point d'avancement de ces actions.</p>
+            <p>
+              <strong>5.</strong> Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions
+              à réaliser pour faire le point d'avancement de ces actions.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -398,9 +389,11 @@ export function DecisionsPage() {
             <DialogDescription>
               {(selected?.kind ?? "D") === "I" && "Information"}
               {(selected?.kind ?? "D") === "D" && "Décision"}
-              {(selected?.kind ?? "D") === "A" && "Action"} · Ajouté le{" "}
-              {selected && new Date(selected.decidedAt).toLocaleDateString("fr-FR")} à{" "}
-              {selected && new Date(selected.decidedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              {(selected?.kind ?? "D") === "A" && "Action"} · Ajouté le {selected &&
+                new Date(selected.decidedAt).toLocaleDateString("fr-FR")}
+              {" "}à{" "}
+              {selected &&
+                new Date(selected.decidedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </DialogDescription>
           </DialogHeader>
 
