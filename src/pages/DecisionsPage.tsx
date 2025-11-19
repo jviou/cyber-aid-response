@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Clock, Info, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import type { AppState } from "@/lib/stateStore";
 import { toast } from "sonner";
@@ -33,7 +33,6 @@ type RidaStatus = "À initier" | "En cours" | "En pause" | "En retard" | "Bloqu�
 type DecisionRecord = AppState["decisions"][number] & {
   kind?: RidaType;
   status?: RidaStatus;
-  dueDate?: string;
   owner?: string;
 };
 
@@ -116,7 +115,7 @@ export function DecisionsPage() {
       decisions: [...prev.decisions, newDecision],
     }));
 
-    setDraft({ subject: "", type: "D", description: "", owner: "", status: "À initier", dueDate: "" });
+    setDraft({ subject: "", description: "", owner: "", status: "À initier" });
     setIsAddOpen(false);
     toast.success("Décision ajoutée");
   };
@@ -148,13 +147,10 @@ export function DecisionsPage() {
       <div className="bg-gradient-to-r from-pink-200 to-purple-200 p-6 rounded-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              Relevé des Informations, Décisions & Actions (RIDA)
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-800">Relevé des Décisions</h1>
             <p className="text-gray-600 mt-2 max-w-4xl">
-              Le RIDA est un outil de gestion de projet qui permet de retrouver les différentes
-              informations transmises lors d'une crise dans un document. Ces informations sont le
-              point de départ de décisions à prendre en équipe, et d'actions à réaliser.
+              Centralisez les décisions prises par la cellule pour suivre les responsabilités,
+              l'état d'avancement et l'historique complet de la crise.
             </p>
           </div>
 
@@ -162,42 +158,25 @@ export function DecisionsPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Nouvel élément
+                Nouvelle décision
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Nouvel élément RIDA</DialogTitle>
+                <DialogTitle>Ajouter une décision</DialogTitle>
                 <DialogDescription>
-                  Ajouter une information, décision ou action au relevé
+                  Documentez une nouvelle décision prise pendant la gestion de crise
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Sujet</Label>
-                    <Input
-                      value={draft.subject}
-                      onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
-                      placeholder="Investigations, Messagerie, etc."
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>Type</Label>
-                    <Select
-                      value={draft.type}
-                      onValueChange={(v: RidaType) => setDraft({ ...draft, type: v })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="I">I - Information</SelectItem>
-                        <SelectItem value="D">D - Décision</SelectItem>
-                        <SelectItem value="A">A - Action</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="grid gap-2">
+                  <Label>Sujet</Label>
+                  <Input
+                    value={draft.subject}
+                    onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
+                    placeholder="Investigations, Messagerie, etc."
+                  />
                 </div>
 
                 <div className="grid gap-2">
@@ -239,37 +218,26 @@ export function DecisionsPage() {
                   </div>
                 </div>
 
-                {draft.type === "A" && (
-                  <div className="grid gap-2">
-                    <Label>Échéance (optionnel)</Label>
-                    <Input
-                      type="date"
-                      value={draft.dueDate}
-                      onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                <Button onClick={onAdd} className="w-full">Ajouter l’élément</Button>
+                <Button onClick={onAdd} className="w-full">Ajouter la décision</Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         <div className="mt-4 text-sm text-gray-700">
-          <p className="mb-2 font-medium">Le relevé comprend :</p>
+          <p className="mb-2 font-medium">Bonnes pratiques :</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <p>• <strong>Information</strong> : l’élément factuel diffusé à tous les membres de la cellule</p>
-            <p>• <strong>Décision</strong> : les décisions prises pour faire avancer la crise par la cellule décisionnelle</p>
-            <p>• <strong>Action</strong> : les tâches à réaliser pour parvenir à un résultat</p>
+            <p>• Résumez clairement la décision et son contexte.</p>
+            <p>• Indiquez le porteur/responsable désigné.</p>
+            <p>• Mettez à jour l’état pour suivre l’avancement.</p>
           </div>
         </div>
       </div>
 
-      {/* Tableau RIDA */}
+      {/* Tableau */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Tableau RIDA</CardTitle>
+          <CardTitle className="text-lg">Tableau des décisions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
@@ -279,10 +247,6 @@ export function DecisionsPage() {
                   <TableHead className="w-24">Date</TableHead>
                   <TableHead className="w-20">Heure</TableHead>
                   <TableHead className="w-32">Sujet</TableHead>
-                  <TableHead className="w-8 text-center">I</TableHead>
-                  <TableHead className="w-8 text-center">D</TableHead>
-                  <TableHead className="w-8 text-center">A</TableHead>
-                  <TableHead className="w-40">Échéance</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="w-28">Porteur</TableHead>
                   <TableHead className="w-32">État</TableHead>
@@ -294,7 +258,6 @@ export function DecisionsPage() {
                   const dt = new Date(d.decidedAt);
                   const date = dt.toLocaleDateString("fr-FR");
                   const time = dt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-                  const kind = (d.kind ?? "D") as RidaType;
                   const status = (d.status ?? "À initier") as RidaStatus;
 
                   return (
@@ -306,10 +269,6 @@ export function DecisionsPage() {
                       <TableCell className="font-medium">{date}</TableCell>
                       <TableCell>{time}</TableCell>
                       <TableCell className="font-medium">{d.title}</TableCell>
-                      <TableCell className="text-center">{kind === "I" && <TypeIcon t="I" />}</TableCell>
-                      <TableCell className="text-center">{kind === "D" && <TypeIcon t="D" />}</TableCell>
-                      <TableCell className="text-center">{kind === "A" && <TypeIcon t="A" />}</TableCell>
-                      <TableCell>{d.dueDate || "-"}</TableCell>
                       <TableCell className="max-w-md">
                         <p className="text-sm line-clamp-2">{d.rationale}</p>
                       </TableCell>
@@ -350,7 +309,7 @@ export function DecisionsPage() {
 
           {rida.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              Aucun élément dans le relevé pour l’instant
+              Aucune décision enregistrée pour l’instant
             </div>
           )}
         </CardContent>
@@ -383,7 +342,6 @@ export function DecisionsPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {selectedId && <TypeIcon t={(selected?.kind ?? "D") as RidaType} />}
               {selected?.title}
             </DialogTitle>
             <DialogDescription>
@@ -416,16 +374,6 @@ export function DecisionsPage() {
                   </div>
                 </div>
               </div>
-
-              {selected.dueDate && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Échéance</Label>
-                  <p className="text-sm mt-1 flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    {selected.dueDate}
-                  </p>
-                </div>
-              )}
 
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Description complète</Label>
