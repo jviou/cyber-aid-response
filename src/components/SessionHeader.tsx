@@ -1,20 +1,16 @@
+// src/components/SessionHeader.tsx
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Download, 
-  Upload, 
-  RotateCcw, 
-  Menu,
-  Save
-} from "lucide-react";
+import { Download, Upload, RotateCcw, Menu, Save } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { resetSession, saveState } from "@lib/stateStore";
+import { importJSON, resetSession, saveState } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
@@ -26,9 +22,9 @@ export function SessionHeader() {
   const handleExport = () => {
     try {
       const dataStr = JSON.stringify(state, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
+      const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `crisis-session-${new Date().toISOString()}.json`;
       link.click();
@@ -50,25 +46,29 @@ export function SessionHeader() {
     } catch (error) {
       toast.error("Erreur lors de l'import");
     }
-    
-    // Reset file input
+
+    // Reset du champ fichier
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const handleReset = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir réinitialiser la session ? Toutes les données seront perdues.")) {
+    if (
+      !confirm(
+        "Êtes-vous sûr de vouloir réinitialiser la session ? Toutes les données seront perdues."
+      )
+    ) {
       return;
     }
 
     setIsResetting(true);
     try {
       await resetSession(sessionId);
-      // Reload the page to reinitialize everything
+      // on recharge tout pour repartir propre
       window.location.reload();
     } catch (error) {
-      console.error('Error resetting session:', error);
+      console.error("Error resetting session:", error);
       toast.error("Erreur lors de la réinitialisation");
     } finally {
       setIsResetting(false);
@@ -81,8 +81,10 @@ export function SessionHeader() {
       await saveState(sessionId, state);
       toast.success("Session sauvegardée");
     } catch (error) {
-      console.error('Error saving session:', error);
-      toast.error("API de sauvegarde indisponible, les données restent en local");
+      console.error("Error saving session:", error);
+      toast.error(
+        "API de sauvegarde indisponible, les données restent en local"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -94,17 +96,17 @@ export function SessionHeader() {
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold">{state.meta.title}</h1>
           <div className="text-sm text-muted-foreground">
-            {state.meta.mode === 'real' ? '🔴 Mode Réel' : '🟡 Mode Exercice'} 
-            - {state.meta.severity}
+            {state.meta.mode === "real" ? "🔴 Mode Réel" : "🟡 Mode Exercice"} -{" "}
+            {state.meta.severity}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Sauvegarde…' : 'Sauvegarder'}
+            {isSaving ? "Sauvegarde…" : "Sauvegarder"}
           </Button>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -117,21 +119,23 @@ export function SessionHeader() {
                 <Download className="w-4 h-4 mr-2" />
                 Exporter JSON
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+              <DropdownMenuItem
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className="w-4 h-4 mr-2" />
                 Importer JSON
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleReset}
                 disabled={isResetting}
                 className="text-destructive focus:text-destructive"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                {isResetting ? 'Réinitialisation...' : 'Réinitialiser Session'}
+                {isResetting ? "Réinitialisation..." : "Réinitialiser Session"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           <input
             ref={fileInputRef}
             type="file"
