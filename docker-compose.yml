@@ -1,9 +1,27 @@
 version: "3.8"
 
 services:
-  crisis-labs:
-    image: jviou/crisis-labs:latest
-    container_name: crisis-labs
+  crisis-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: crisis-api
     restart: unless-stopped
     ports:
-      - "8069:8080"  # 8069 côté host, 8080 dans le conteneur
+      - "4000:4000"
+    volumes:
+      - crisis_state_data:/data
+
+  crisis-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crisis-frontend
+    restart: unless-stopped
+    depends_on:
+      - crisis-api
+    ports:
+      - "8080:8080"
+
+volumes:
+  crisis_state_data:
