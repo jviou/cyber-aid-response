@@ -27,12 +27,20 @@ import type { AppState } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 /** -------- Types -------- */
+type RidaType = "I" | "D" | "A";
 type RidaStatus = "À initier" | "En cours" | "En pause" | "En retard" | "Bloqué" | "Terminé";
 
 type DecisionRecord = AppState["decisions"][number] & {
+  kind?: RidaType;
   status?: RidaStatus;
   owner?: string;
 };
+
+function TypeIcon({ t }: { t: RidaType }) {
+  if (t === "I") return <Info className="w-4 h-4 text-blue-600" />;
+  if (t === "D") return <CheckCircle className="w-4 h-4 text-green-600" />;
+  return <AlertCircle className="w-4 h-4 text-orange-600" />;
+}
 
 /** -------- Helpers UI -------- */
 function statusBg(status: RidaStatus) {
@@ -78,9 +86,11 @@ export function DecisionsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     subject: "",
+    type: "D" as RidaType,
     description: "",
     owner: "",
     status: "À initier" as RidaStatus,
+    dueDate: "",
   });
 
   const onAdd = () => {
@@ -96,6 +106,8 @@ export function DecisionsPage() {
       rationale: draft.description.trim(),
       owner: draft.owner.trim() || undefined,
       status: draft.status,
+      kind: draft.type,
+      dueDate: draft.type === "A" && draft.dueDate ? draft.dueDate : undefined,
     };
 
     updateState((prev) => ({
@@ -303,6 +315,28 @@ export function DecisionsPage() {
         </CardContent>
       </Card>
 
+      <Card className="bg-blue-50">
+        <CardContent className="pt-6">
+          <h3 className="font-medium mb-3">Instructions d'utilisation du RIDA</h3>
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              <strong>1.</strong> Notez de manière abrégée les informations, décisions et actions abordées en cellule de
+              crise.
+            </p>
+            <p>
+              <strong>2.</strong> Indiquez le type du sujet. S'agit-il d'une information ? D'une décision ? D'une action ?
+              Indiquez un I, D, ou A dans la colonne Type correspondante.
+            </p>
+            <p><strong>3.</strong> Notez qui est l'acteur/le porteur associé à ce sujet.</p>
+            <p><strong>4.</strong> Précisez la date d'échéance s'il s'agit d'une action.</p>
+            <p>
+              <strong>5.</strong> Lisez le RIDA à chaque point de situation afin de rappeler les décisions prises et les actions
+              à réaliser pour faire le point d'avancement de ces actions.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Détail */}
       <Dialog open={!!selectedId} onOpenChange={() => setSelectedId(null)}>
         <DialogContent className="max-w-2xl">
@@ -311,8 +345,13 @@ export function DecisionsPage() {
               {selected?.title}
             </DialogTitle>
             <DialogDescription>
-              {selected && new Date(selected.decidedAt).toLocaleDateString("fr-FR")} à{" "}
-              {selected && new Date(selected.decidedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              {(selected?.kind ?? "D") === "I" && "Information"}
+              {(selected?.kind ?? "D") === "D" && "Décision"}
+              {(selected?.kind ?? "D") === "A" && "Action"} · Ajouté le {selected &&
+                new Date(selected.decidedAt).toLocaleDateString("fr-FR")}
+              {" "}à{" "}
+              {selected &&
+                new Date(selected.decidedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </DialogDescription>
           </DialogHeader>
 
