@@ -1,160 +1,118 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, getOrCreateSessionId, loadState, getDefaultState, saveState, fetchRemoteSnapshot } from '@/lib/stateStore';
-import { toast } from 'sonner';
+import { useEffect, useState, useCallback } from "react";
+import type { AppState } from "@/lib/stateStore";
+import {
+  getDefaultState,
+  getOrCreateSessionId,
+  loadState,
+  saveState,
+  fetchRemoteSnapshot,
+} from "@/lib/stateStore";
 
-interface CrisisStateContextType {
+const SYNC_INTERVAL_MS =
+  Number(import.meta.env.VITE_SYNC_INTERVAL_MS || 5000); // 5s par défaut
+
+interface UseCrisisStateResult {
   state: AppState;
   sessionId: string;
   isLoading: boolean;
-  updateState: (updater: (state: AppState) => AppState) => void;
-  refreshState: () => Promise<void>;
+  updateState: (updater: (prev: AppState) => AppState) => void;
+  reloadFromServer: () => Promise<void>;
 }
 
-const CrisisStateContext = createContext<CrisisStateContextType | null>(null);
-
-export function useCrisisState() {
-  const context = useContext(CrisisStateContext);
-  if (!context) {
-    throw new Error('useCrisisState must be used within a CrisisStateProvider');
-  }
-  return context;
-}
-
-export function CrisisStateProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState>(getDefaultState());
-  const [sessionId, setSessionId] = useState<string>('');
+export function useCrisisState(): UseCrisisStateResult {
+  const [sessionId] = useState(() => getOrCreateSessionId());
+  const [state, setState] = useState<AppState>(() => getDefaultState());
   const [isLoading, setIsLoading] = useState(true);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveFailureRef = useRef(false);
-  const lastSaveErrorToastRef = useRef(0);
 
-  // Load initial state
+  // Chargement initial depuis l'API (ou local si l’API ne répond pas)
   useEffect(() => {
-    const initializeState = async () => {
+    let cancelled = false;
+
+    (async () => {
       try {
-        const id = getOrCreateSessionId();
-        setSessionId(id);
-        const loadedState = await loadState(id, {
-          onRemoteLoadError: () => {
-            const now = Date.now();
-            if (now - lastLoadErrorToastRef.current > 30000) {
-              toast.error('API distante indisponible, chargement du cache local');
-              lastLoadErrorToastRef.current = now;
-            }
-          }
-        });
-        setState(loadedState);
+        setIsLoading(true);
+        const initial = await loadState(sessionId);
+        if (!cancelled) {
+          setState(initial);
+        }
       } catch (error) {
-        console.error('Error initializing state:', error);
-        toast.error('Erreur lors du chargement de la session');
+        console.warn("Failed to load initial crisis state:", error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-    };
+    })();
 
-    initializeState();
-  }, []);
-
-  useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      cancelled = true;
     };
-  }, []);
-
-  // Debounced save function
-  const debouncedSave = useCallback((newState: AppState) => {
-    if (!sessionId) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await saveState(sessionId, newState);
-        if (saveFailureRef.current) {
-          toast.success('Connexion à l\'API restaurée, synchronisation active');
-        }
-        saveFailureRef.current = false;
-      } catch (error) {
-        console.error('Error saving state:', error);
-        const now = Date.now();
-        if (!saveFailureRef.current || now - lastSaveErrorToastRef.current > 30000) {
-          toast.error('Sauvegarde distante indisponible, vos données restent stockées localement');
-          lastSaveErrorToastRef.current = now;
-        }
-        saveFailureRef.current = true;
-      }
-    }, 500);
   }, [sessionId]);
 
-  const updateState = useCallback((updater: (state: AppState) => AppState) => {
-    setState(prevState => {
-      const newState = updater(prevState);
-      const timestampedState: AppState = {
-        ...newState,
-        meta: {
-          ...newState.meta,
-          updatedAt: new Date().toISOString()
-        }
-      };
-      debouncedSave(timestampedState);
-      return timestampedState;
-    });
-  }, [debouncedSave]);
-
-  const refreshState = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const refreshedState = await loadState(sessionId, {
-        onRemoteLoadError: () => {
-          toast.error('Impossible de contacter l\'API, données locales affichées');
-        }
+  // Fonction pour mettre à jour l'état local + pousser vers l'API
+  const updateState = useCallback(
+    (updater: (prev: AppState) => AppState) => {
+      setState((prev) => {
+        const next = updater(prev);
+        // on pousse en arrière-plan vers l'API
+        void saveState(sessionId, next).catch((error) => {
+          console.warn("Failed to save crisis state:", error);
+        });
+        return next;
       });
-      setState(refreshedState);
-    } catch (error) {
-      console.error('Error refreshing state:', error);
-      toast.error('Erreur lors du rafraîchissement');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const interval = setInterval(async () => {
-      const remote = await fetchRemoteSnapshot(sessionId);
-      if (!remote) return;
-
-      setState(prevState => {
-        const prevHash = JSON.stringify(prevState);
-        const nextHash = JSON.stringify(remote);
-        if (prevHash === nextHash) {
-          return prevState;
-        }
-
-        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
-        return remote;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [sessionId]);
-
-  return (
-    <CrisisStateContext.Provider 
-      value={{
-        state,
-        sessionId,
-        isLoading,
-        updateState,
-        refreshState
-      }}
-    >
-      {children}
-    </CrisisStateContext.Provider>
+    },
+    [sessionId],
   );
+
+  // Reload manuel depuis le serveur (si un jour tu veux un bouton "Recharger")
+  const reloadFromServer = useCallback(async () => {
+    try {
+      const remote = await fetchRemoteSnapshot(sessionId);
+      if (remote) {
+        setState(remote);
+      }
+    } catch (error) {
+      console.warn("Failed to reload crisis state from server:", error);
+    }
+  }, [sessionId]);
+
+  // Synchronisation automatique périodique (polling)
+  useEffect(() => {
+    if (!SYNC_INTERVAL_MS || SYNC_INTERVAL_MS < 500) return;
+
+    let cancelled = false;
+
+    const timer = setInterval(async () => {
+      try {
+        const remote = await fetchRemoteSnapshot(sessionId);
+        if (!remote || cancelled) return;
+
+        setState((current) => {
+          // Si rien n'a changé, on ne touche pas au state
+          const currentStr = JSON.stringify(current);
+          const remoteStr = JSON.stringify(remote);
+          if (currentStr === remoteStr) {
+            return current;
+          }
+          // Sinon on met à jour avec la version distante
+          return remote;
+        });
+      } catch (error) {
+        console.warn("Background sync failed:", error);
+      }
+    }, SYNC_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [sessionId]);
+
+  return {
+    state,
+    sessionId,
+    isLoading,
+    updateState,
+    reloadFromServer,
+  };
 }
