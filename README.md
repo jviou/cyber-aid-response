@@ -71,3 +71,38 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Run everything with Docker Compose
+
+Build and run the multi-user stack (frontend + state API) locally with Docker Compose:
+
+```sh
+docker compose up --build
+```
+
+This will expose the Crisis Labs UI on port `8080` and the shared state API on port `4000`. The session state is stored inside a named Docker volume (`crisis_state_data`) so restarting the stack on a Linux server preserves previously recorded crises.
+
+### Configuration clés
+
+- `VITE_CRISIS_API_URL` : URL publique du service `crisis-api` (ex : `http://crisis-api:4000`). Elle est injectée au build (`docker-compose` la configure déjà) et sert aussi de valeur par défaut à l'exécution.
+- `VITE_DEFAULT_SESSION_ID` : identifiant de session partagé. Quand il est défini (ex : `default`), tous les navigateurs utilisent automatiquement cette session commune : parfait pour un poste de commandement multi-utilisateurs.
+
+Lors d'un déploiement manuel (sans Docker) pensez à exporter ces variables avant `npm run build` :
+
+```sh
+export VITE_CRISIS_API_URL="https://mon-api-crise.exemple.com"
+export VITE_DEFAULT_SESSION_ID="default"
+npm run build
+```
+
+### Synchronisation temps réel
+
+Le frontend interroge l'API `GET /api/state?sessionId=...` toutes les 5 secondes. Chaque sauvegarde met à jour `meta.updatedAt` et le polling applique automatiquement les états plus récents sans écraser les formulaires en cours. Si l'API n'est plus accessible, l'interface affiche un toast explicite, garde les données dans `localStorage` et retentera la synchronisation dès que possible.
+
+### Scénario de test recommandé
+
+1. `docker compose up --build -d`.
+2. Ouvrir l'interface depuis deux navigateurs/PC distincts.
+3. Ajouter une décision sur le navigateur A et cliquer sur « Sauvegarder ».
+4. Vérifier que la décision apparaît sur B en moins de 5 à 10 secondes sans rechargement.
+5. Arrêter temporairement le conteneur `crisis-api` : les navigateurs affichent alors un toast d'erreur et basculent sur le cache local. Au redémarrage, la synchronisation se réactive automatiquement.

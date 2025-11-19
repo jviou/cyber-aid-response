@@ -100,9 +100,21 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
     });
   };
 
+  const isPdf = (resource: ResourceFile) => {
+    if (resource.mime_type?.toLowerCase().includes("pdf")) {
+      return true;
+    }
+    return resource.title?.toLowerCase().endsWith(".pdf");
+  };
+
   const handleDownload = async (resource: ResourceFile) => {
     try {
       const url = await getFileUrl(resource.blob_key || '');
+      if (isPdf(resource)) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       const a = document.createElement('a');
       a.href = url;
       a.download = resource.title;
