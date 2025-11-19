@@ -113,21 +113,21 @@ async function saveAllSessions(data) {
   await fsp.writeFile(STATE_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
-async function readState(sessionId: string) {
+async function readState(sessionId) {
   const all = await loadAllSessions();
-  return all.sessions?.[sessionId] || null;
+  return (all.sessions && all.sessions[sessionId]) || null;
 }
 
-async function writeState(sessionId: string, state: unknown) {
+async function writeState(sessionId, state) {
   const all = await loadAllSessions();
   all.sessions = all.sessions || {};
   all.sessions[sessionId] = state;
   await saveAllSessions(all);
 }
 
-async function deleteState(sessionId: string) {
+async function deleteState(sessionId) {
   const all = await loadAllSessions();
-  if (all.sessions?.[sessionId]) {
+  if (all.sessions && all.sessions[sessionId]) {
     delete all.sessions[sessionId];
     await saveAllSessions(all);
   }
@@ -135,7 +135,7 @@ async function deleteState(sessionId: string) {
 
 // --- Utilitaires HTTP --------------------------------------------------------
 
-function readJsonBody(req: http.IncomingMessage): Promise<any> {
+function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
 
@@ -159,11 +159,7 @@ function readJsonBody(req: http.IncomingMessage): Promise<any> {
   });
 }
 
-function sendJson(
-  res: http.ServerResponse,
-  statusCode: number,
-  payload: unknown
-) {
+function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -174,7 +170,7 @@ function sendJson(
   res.end(body);
 }
 
-function sendOptions(res: http.ServerResponse) {
+function sendOptions(res) {
   res.writeHead(204, {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
