@@ -208,12 +208,6 @@ function sanitizeState(rawState?: Partial<AppState> | null): AppState {
   };
 }
 
-function sanitizeState(rawState?: Partial<AppState> | null): AppState {
-  const fallback = getDefaultState();
-  if (!rawState) {
-    return fallback;
-  }
-
   return {
     meta: {
       title: rawState.meta?.title || fallback.meta.title,
