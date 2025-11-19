@@ -1,16 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Home, 
-  ListChecks, 
-  ScrollText, 
-  CheckSquare, 
-  Gavel, 
-  MessageSquare,
-  BarChart3,
-  FileText,
-  Shield,
-  Book
-} from "lucide-react";
+import { Home, Gavel, MessageSquare, FileText, Shield, Book } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
