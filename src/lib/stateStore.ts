@@ -9,6 +9,7 @@ export interface AppState {
     mode: 'real' | 'exercise';
     severity: 'Low' | 'Modérée' | 'Élevée' | 'Critique';
     createdAt: string;
+    updatedAt: string;
   };
   contacts: Array<{
     id: string;
@@ -74,6 +75,22 @@ export interface AppState {
 // ===== Config API ===========================================================
 
 const SESSION_ID_KEY = 'crisis_session_id';
+const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined;
+const configuredApiUrl = (import.meta.env.VITE_CRISIS_API_URL as string | undefined)?.trim();
+const DEFAULT_API_BASE = 'http://crisis-api:4000';
+const API_BASE_URL = (configuredApiUrl && configuredApiUrl !== '' ? configuredApiUrl : DEFAULT_API_BASE).replace(/\/$/, '');
+const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
+const STORAGE_KEY_PREFIX = 'crisis-state-';
+
+export interface LoadStateOptions {
+  onRemoteLoadError?: (error: Error) => void;
+  onRemoteLoadSuccess?: () => void;
+}
+
+export interface SaveStateOptions {
+  onRemoteSaveError?: (error: Error) => void;
+  onRemoteSaveSuccess?: () => void;
+}
 
 // ID de session par défaut (permet de forcer tout le monde sur la même)
 const DEFAULT_SESSION_ID = (import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined) || 'crisis-session-001';
@@ -192,6 +209,7 @@ export function getOrCreateSessionId(): string {
 import { defaultPhases } from '@/data/crisisData';
 
 export function getDefaultState(): AppState {
+  const now = new Date().toISOString();
   return {
     meta: {
       title: 'Nouvelle Session de Crise',
@@ -200,8 +218,6 @@ export function getDefaultState(): AppState {
       createdAt: new Date().toISOString(),
     },
     contacts: [],
-    journal: [],
-    actions: [],
     decisions: [],
     communications: [],
     phases: defaultPhases.map((p) => ({

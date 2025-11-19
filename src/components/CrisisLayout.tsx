@@ -9,6 +9,7 @@ import { PhaseManagement } from "@/pages/PhaseManagement";
 import { DecisionsPage } from "@/pages/DecisionsPage";
 import { ResourcesPage } from "@/pages/ResourcesPage";
 import { GlossaryPage } from "@/pages/GlossaryPage";
+import { IntroductionPage } from "@/pages/IntroductionPage";
 import NotFound from "@/pages/NotFound";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import type { CrisisSession } from "@/types/crisis";
@@ -124,6 +125,7 @@ export function CrisisLayout() {
           <SessionHeader />
           <main className="flex-1 p-6 overflow-auto">
             <Routes>
+              <Route path="/introduction" element={<IntroductionPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route
                 path="/communications"
