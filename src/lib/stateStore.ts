@@ -15,15 +15,45 @@ export interface AppState {
     email: string;
     phone: string;
   }>;
+  journal: Array<{
+    id: string;
+    at: string;
+    category:
+      | "incident"
+      | "action"
+      | "decision"
+      | "communication"
+      | "technical"
+      | "legal"
+      | "note";
+    title: string;
+    details: string;
+  }>;
+  actions: Array<{
+    id: string;
+    title: string;
+    description: string;
+    status: "todo" | "doing" | "done";
+    owner: string;
+    priority?: "low" | "med" | "high";
+    dueAt: string | null;
+    createdAt: string;
+    updatedAt?: string;
+    position: number;
+  }>;
   decisions: Array<{
     id: string;
     title: string;
     rationale: string;
     owner?: string;
     decidedAt: string;
-    status?: 'À initier' | 'En cours' | 'En pause' | 'En retard' | 'Bloqué' | 'Terminé';
-    kind?: 'I' | 'D' | 'A';
-    dueDate?: string;
+    status?:
+      | "À initier"
+      | "En cours"
+      | "En pause"
+      | "En retard"
+      | "Bloqué"
+      | "Terminé";
   }>;
   communications: Array<{
     id: string;
@@ -52,13 +82,21 @@ export interface AppState {
   }>;
 }
 
-const SESSION_ID_KEY = 'crisis_session_id';
-const DEFAULT_SESSION_ID = import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined;
-const configuredApiUrl = (import.meta.env.VITE_CRISIS_API_URL as string | undefined)?.trim();
-const configuredApiPort = (import.meta.env.VITE_CRISIS_API_PORT as string | undefined)?.trim();
-const DEFAULT_API_PORT = configuredApiPort || '4000';
+const SESSION_ID_KEY = "crisis_session_id";
+const DEFAULT_SESSION_ID = import.meta.env
+  .VITE_DEFAULT_SESSION_ID as string | undefined;
 
-const API_STATE_PATH = '/api/state';
+// ----------------- Détection robuste de l’API backend -----------------
+
+const configuredApiUrl = (
+  import.meta.env.VITE_CRISIS_API_URL as string | undefined
+)?.trim();
+const configuredApiPort = (
+  import.meta.env.VITE_CRISIS_API_PORT as string | undefined
+)?.trim();
+const DEFAULT_API_PORT = configuredApiPort || "4000";
+
+const API_STATE_PATH = "/api/state";
 const API_BASE_CANDIDATES = buildApiBaseCandidates();
 let preferredApiBase: string | null = null;
 
@@ -67,33 +105,36 @@ function buildApiBaseCandidates(): string[] {
   const seen = new Set<string>();
 
   const add = (value?: string) => {
-    if (typeof value === 'undefined' || value === null) return;
-    const normalized = value === '' ? '' : value.replace(/\/$/, '');
+    if (typeof value === "undefined" || value === null) return;
+    const normalized = value === "" ? "" : value.replace(/\/$/, "");
     if (seen.has(normalized)) return;
     seen.add(normalized);
     bases.push(normalized);
   };
 
+  // 1) URL configurée (compose, .env, etc.)
   if (configuredApiUrl) {
     add(configuredApiUrl);
   }
 
-  if (typeof window !== 'undefined' && window.location) {
-    add('');
+  // 2) Même host que le front
+  if (typeof window !== "undefined" && window.location) {
+    add(""); // relatif : /api/state
     const { protocol, hostname } = window.location;
-    const portSuffix = DEFAULT_API_PORT ? `:${DEFAULT_API_PORT}` : '';
+    const portSuffix = DEFAULT_API_PORT ? `:${DEFAULT_API_PORT}` : "";
     add(`${protocol}//${hostname}${portSuffix}`);
   }
 
-  add(`http://127.0.0.1${DEFAULT_API_PORT ? `:${DEFAULT_API_PORT}` : ''}`);
+  // 3) Fallback localhost
+  add(`http://127.0.0.1${DEFAULT_API_PORT ? `:${DEFAULT_API_PORT}` : ""}`);
 
   return bases;
 }
 
-async function fetchWithApi(path: string, init?: RequestInit) {
+async function fetchWithApi(path: string, init?: RequestInit): Promise<Response> {
   const tried = new Set<string>();
   const orderedCandidates = preferredApiBase
-    ? [preferredApiBase, ...API_BASE_CANDIDATES.filter(base => base !== preferredApiBase)]
+    ? [preferredApiBase, ...API_BASE_CANDIDATES.filter((b) => b !== preferredApiBase)]
     : API_BASE_CANDIDATES;
 
   let lastError: unknown = null;
@@ -106,7 +147,9 @@ async function fetchWithApi(path: string, init?: RequestInit) {
     try {
       const response = await fetch(url, init);
       if (!response.ok) {
-        lastError = new Error(`Request failed with status ${response.status} for ${url}`);
+        lastError = new Error(
+          `Request failed with status ${response.status} for ${url}`
+        );
         continue;
       }
       preferredApiBase = base;
@@ -116,8 +159,10 @@ async function fetchWithApi(path: string, init?: RequestInit) {
     }
   }
 
-  throw lastError ?? new Error('Unable to reach crisis API');
+  throw lastError ?? new Error("Unable to reach crisis API");
 }
+
+// ----------------- Gestion des sessions -----------------
 
 export function generateSessionId(): string {
   const globalCrypto =
@@ -127,11 +172,12 @@ export function generateSessionId(): string {
       ? (globalThis as any).crypto
       : undefined;
 
-  if (globalCrypto && 'randomUUID' in globalCrypto) {
+  if (globalCrypto && "randomUUID" in globalCrypto) {
     return (globalCrypto as Crypto).randomUUID();
   }
 
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  // Fallback
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -158,6 +204,8 @@ export function getDefaultState(): AppState {
       createdAt: new Date().toISOString(),
     },
     contacts: [],
+    journal: [],
+    actions: [],
     decisions: [],
     communications: [],
     phases: defaultPhases.map((p) => ({
@@ -208,100 +256,107 @@ function normalizeAppState(rawState?: Partial<AppState> | null): AppState {
   };
 }
 
-function normalizeAppState(rawState?: Partial<AppState> | null): AppState {
-  const fallback = getDefaultState();
-  if (!rawState) {
-    return fallback;
-  }
-
-  return {
-    meta: {
-      title: rawState.meta?.title || fallback.meta.title,
-      mode: rawState.meta?.mode || fallback.meta.mode,
-      severity: rawState.meta?.severity || fallback.meta.severity,
-      createdAt: rawState.meta?.createdAt || fallback.meta.createdAt
-    },
-    contacts: Array.isArray(rawState.contacts) ? rawState.contacts : [],
-    decisions: Array.isArray(rawState.decisions) ? rawState.decisions : [],
-    communications: Array.isArray(rawState.communications) ? rawState.communications : [],
-    phases: Array.isArray(rawState.phases) ? rawState.phases : fallback.phases
-  };
-}
+// ----------------- Local storage -----------------
 
 function readLocalState(sessionId: string): AppState | null {
   try {
     const stored = localStorage.getItem(`crisis-state-${sessionId}`);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
-    console.error('Error reading local state:', error);
+    console.error("Error reading local state:", error);
     return null;
   }
 }
+
+// ----------------- API distante -----------------
 
 async function fetchRemoteState(sessionId: string): Promise<AppState | null> {
   try {
-    const response = await fetchWithApi(`${API_STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`);
+    const response = await fetchWithApi(
+      `${API_STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`
+    );
     const data = await response.json();
     return data.state || null;
   } catch (error) {
-    console.warn('Unable to fetch remote state via available endpoints:', error);
+    console.warn(
+      "Unable to fetch remote state via available endpoints:",
+      error
+    );
     return null;
   }
 }
 
-async function persistRemoteState(sessionId: string, state: AppState): Promise<void> {
+async function persistRemoteState(
+  sessionId: string,
+  state: AppState
+): Promise<void> {
   await fetchWithApi(API_STATE_PATH, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ sessionId, state })
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, state }),
   });
 }
 
 async function deleteRemoteState(sessionId: string): Promise<void> {
   try {
     await fetchWithApi(`${API_STATE_PATH}/${encodeURIComponent(sessionId)}`, {
-      method: 'DELETE'
+      method: "DELETE",
     });
   } catch (error) {
-    console.warn('Unable to delete remote state:', error);
+    console.warn("Unable to delete remote state:", error);
   }
 }
 
+// ----------------- Fonctions publiques -----------------
+
 export async function loadState(sessionId: string): Promise<AppState> {
+  // 1) on tente le remote
   const remoteState = await fetchRemoteState(sessionId);
   if (remoteState) {
-    const sanitizedRemote = normalizeAppState(remoteState);
-    localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitizedRemote));
-    return sanitizedRemote;
+    const normalized = normalizeAppState(remoteState);
+    localStorage.setItem(
+      `crisis-state-${sessionId}`,
+      JSON.stringify(normalized)
+    );
+    return normalized;
   }
 
+  // 2) sinon, le local
   const localState = readLocalState(sessionId);
   if (localState) {
-    const sanitizedLocal = normalizeAppState(localState);
+    const normalized = normalizeAppState(localState);
     try {
-      await persistRemoteState(sessionId, sanitizedLocal);
+      await persistRemoteState(sessionId, normalized);
     } catch (error) {
-      console.warn('Unable to sync local state to remote:', error);
+      console.warn("Unable to sync local state to remote:", error);
     }
-    return sanitizedLocal;
+    return normalized;
   }
 
+  // 3) sinon, état par défaut
   const defaultState = getDefaultState();
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(defaultState));
+  localStorage.setItem(
+    `crisis-state-${sessionId}`,
+    JSON.stringify(defaultState)
+  );
   try {
     await persistRemoteState(sessionId, defaultState);
   } catch (error) {
-    console.warn('Unable to persist default state remotely:', error);
+    console.warn("Unable to persist default state remotely:", error);
   }
   return defaultState;
 }
 
-export async function saveState(sessionId: string, state: AppState): Promise<void> {
-  const sanitizedState = normalizeAppState(state);
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitizedState));
-  await persistRemoteState(sessionId, sanitizedState);
+export async function saveState(
+  sessionId: string,
+  state: AppState
+): Promise<void> {
+  const normalized = normalizeAppState(state);
+  localStorage.setItem(
+    `crisis-state-${sessionId}`,
+    JSON.stringify(normalized)
+  );
+  await persistRemoteState(sessionId, normalized);
 }
 
 export async function deleteState(sessionId: string): Promise<void> {
@@ -309,14 +364,18 @@ export async function deleteState(sessionId: string): Promise<void> {
   await deleteRemoteState(sessionId);
 }
 
-export async function resetSession(currentSessionId: string): Promise<string> {
+export async function resetSession(
+  currentSessionId: string
+): Promise<string> {
   await deleteState(currentSessionId);
   const newSessionId = DEFAULT_SESSION_ID || generateSessionId();
   localStorage.setItem(SESSION_ID_KEY, newSessionId);
   return newSessionId;
 }
 
-export async function fetchRemoteSnapshot(sessionId: string): Promise<AppState | null> {
+export async function fetchRemoteSnapshot(
+  sessionId: string
+): Promise<AppState | null> {
   return fetchRemoteState(sessionId);
 }
 
