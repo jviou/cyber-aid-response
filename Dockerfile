@@ -3,6 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_CRISIS_API_URL
+ARG VITE_DEFAULT_SESSION_ID
+ENV VITE_CRISIS_API_URL=$VITE_CRISIS_API_URL
+ENV VITE_DEFAULT_SESSION_ID=$VITE_DEFAULT_SESSION_ID
+
 COPY package*.json ./
 RUN npm ci
 
@@ -15,11 +20,16 @@ FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
+ARG VITE_CRISIS_API_URL
+ARG VITE_DEFAULT_SESSION_ID
+ENV VITE_CRISIS_API_URL=$VITE_CRISIS_API_URL
+ENV VITE_DEFAULT_SESSION_ID=$VITE_DEFAULT_SESSION_ID
+
 # seules les deps "prod"
 COPY --from=builder /app/package*.json ./
 RUN npm ci --omit=dev
 
-# on copie le build dans ./public pour le serveur Express
+# on copie le build dans ./public pour le serveur Node
 COPY --from=builder /app/dist ./public
 COPY server.js ./server.js
 

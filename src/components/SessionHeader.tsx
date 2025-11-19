@@ -14,12 +14,13 @@ import {
   Save
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { importJSON, resetSession } from "@/lib/stateStore";
+import { importJSON, resetSession, saveState } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
   const { state, sessionId, updateState } = useCrisisState();
   const [isResetting, setIsResetting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -75,11 +76,15 @@ export function SessionHeader() {
   };
 
   const handleSave = async () => {
+    setIsSaving(true);
     try {
-      localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(state));
+      await saveState(sessionId, state);
       toast.success("Session sauvegardée");
     } catch (error) {
-      toast.error("Erreur lors de la sauvegarde");
+      console.error('Error saving session:', error);
+      toast.error("API de sauvegarde indisponible, les données restent en local");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -95,9 +100,9 @@ export function SessionHeader() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSave}>
+          <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
-            Sauvegarder
+            {isSaving ? 'Sauvegarde…' : 'Sauvegarder'}
           </Button>
           
           <DropdownMenu>
