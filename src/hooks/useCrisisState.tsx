@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AppState, getOrCreateSessionId, loadState, getDefaultState } from '@/lib/stateStore';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, getOrCreateSessionId, loadState, getDefaultState, saveState, fetchRemoteSnapshot } from '@/lib/stateStore';
 import { toast } from 'sonner';
 
 interface CrisisStateContextType {
@@ -24,7 +24,9 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
   const [state, setState] = useState<AppState>(getDefaultState());
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveFailureRef = useRef(false);
+  const lastSaveErrorToastRef = useRef(0);
 
   // Load initial state
   useEffect(() => {
@@ -45,23 +47,40 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
     initializeState();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Debounced save function
-  const debouncedSave = useCallback(async (newState: AppState) => {
-    if (saveTimeout) {
-      clearTimeout(saveTimeout);
+  const debouncedSave = useCallback((newState: AppState) => {
+    if (!sessionId) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
 
-    const timeout = setTimeout(async () => {
+    saveTimeoutRef.current = setTimeout(async () => {
       try {
-        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(newState));
+        await saveState(sessionId, newState);
+        if (saveFailureRef.current) {
+          toast.success('Connexion à l\'API restaurée, synchronisation active');
+        }
+        saveFailureRef.current = false;
       } catch (error) {
         console.error('Error saving state:', error);
-        toast.error('Erreur lors de la sauvegarde');
+        const now = Date.now();
+        if (!saveFailureRef.current || now - lastSaveErrorToastRef.current > 30000) {
+          toast.error('Sauvegarde distante indisponible, vos données restent stockées localement');
+          lastSaveErrorToastRef.current = now;
+        }
+        saveFailureRef.current = true;
       }
     }, 500);
-
-    setSaveTimeout(timeout);
-  }, [sessionId, saveTimeout]);
+  }, [sessionId]);
 
   const updateState = useCallback((updater: (state: AppState) => AppState) => {
     setState(prevState => {
@@ -82,6 +101,28 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
     } finally {
       setIsLoading(false);
     }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const interval = setInterval(async () => {
+      const remote = await fetchRemoteSnapshot(sessionId);
+      if (!remote) return;
+
+      setState(prevState => {
+        const prevHash = JSON.stringify(prevState);
+        const nextHash = JSON.stringify(remote);
+        if (prevHash === nextHash) {
+          return prevState;
+        }
+
+        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
+        return remote;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [sessionId]);
 
   return (

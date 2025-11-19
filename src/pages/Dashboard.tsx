@@ -1,19 +1,17 @@
-import { useState, useMemo, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Clock, 
-  CheckCircle, 
+import {
+  Clock,
   MessageSquare,
   Target,
   Plus,
   Trash2,
-  FileText,
   Gavel
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
@@ -53,25 +51,13 @@ export function Dashboard() {
   }, [state.phases]);
   
   // Recent events including RIDA items
-  const allRecentItems = [
-    ...state.journal.map(event => ({
-      id: event.id,
-      type: 'journal' as const,
-      title: event.title,
-      category: event.category,
-      date: event.at,
-      details: event.details
-    })),
-    ...state.decisions.map(rida => ({
-      id: rida.id,
-      type: 'rida' as const,
-      title: rida.title,
-      category: 'RIDA',
-      date: rida.decidedAt,
-      details: rida.rationale,
-      owner: rida.owner
-    }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const recentDecisions = useMemo(
+    () =>
+      [...state.decisions]
+        .sort((a, b) => new Date(b.decidedAt).getTime() - new Date(a.decidedAt).getTime())
+        .slice(0, 5),
+    [state.decisions]
+  );
   
   const handleAddContact = () => {
     if (!newContact.name.trim()) {
@@ -235,38 +221,35 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Derniers événements */}
+        {/* Dernières décisions */}
         <Card>
           <CardHeader>
-            <CardTitle>Derniers Événements</CardTitle>
+            <CardTitle>Dernières Décisions</CardTitle>
           </CardHeader>
           <CardContent>
-            {allRecentItems.length > 0 ? (
+            {recentDecisions.length > 0 ? (
               <div className="space-y-3">
-                {allRecentItems.map((item) => (
-                  <div key={`${item.type}-${item.id}`} className={`border-l-4 pl-4 pb-3 ${
-                    item.type === 'rida' ? 'border-amber-500' : 'border-primary'
-                  }`}>
+                {recentDecisions.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border-l-4 border-amber-500 pl-4 pb-3"
+                  >
                     <div className="flex items-center gap-2">
-                      {item.type === 'rida' ? (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                          <FileText className="w-3 h-3 mr-1" />
-                          {item.category}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">{item.category}</Badge>
-                      )}
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800">
+                        <Gavel className="w-3 h-3 mr-1" />
+                        Décision
+                      </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {new Date(item.date).toLocaleString('fr-FR')}
+                        {new Date(item.decidedAt).toLocaleString('fr-FR')}
                       </span>
                     </div>
                     <h4 className="font-medium mt-1">{item.title}</h4>
-                    {item.details && (
+                    {item.rationale && (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {item.details}
+                        {item.rationale}
                       </p>
                     )}
-                    {item.type === 'rida' && item.owner && (
+                    {item.owner && (
                       <div className="flex items-center gap-1 mt-2">
                         <span className="text-xs text-muted-foreground">Assigné à:</span>
                         <span className="text-xs font-medium">{item.owner}</span>
@@ -276,7 +259,7 @@ export function Dashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">Aucun événement enregistré</p>
+              <p className="text-muted-foreground">Aucune décision enregistrée</p>
             )}
           </CardContent>
         </Card>
