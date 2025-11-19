@@ -16,8 +16,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        VITE_CRISIS_API_URL: http://crisis-api:4000
     container_name: crisis-frontend
     restart: unless-stopped
     depends_on:

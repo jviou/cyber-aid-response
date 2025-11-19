@@ -147,10 +147,19 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
-                    <Input 
-                      placeholder="Assigner à..." 
+                    <Input
+                      placeholder="Nom du responsable"
                       className="text-sm h-8"
-                      defaultValue="jj/mm/aaaa --:--"
+                      value={item.assignee || ''}
+                      onChange={(event) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            strategic: p.strategic.map(si => si.id === item.id ? { ...si, assignee: event.target.value } : si)
+                          } : p)
+                        }))
+                      }
                     />
                   </div>
                   <div>
@@ -224,10 +233,19 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
-                    <Input 
-                      placeholder="Assigner à..." 
+                    <Input
+                      placeholder="Nom du responsable"
                       className="text-sm h-8"
-                      defaultValue="jj/mm/aaaa --:--"
+                      value={item.assignee || ''}
+                      onChange={(event) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            operational: p.operational.map(oi => oi.id === item.id ? { ...oi, assignee: event.target.value } : oi)
+                          } : p)
+                        }))
+                      }
                     />
                   </div>
                   <div>

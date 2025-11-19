@@ -25,6 +25,8 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveFailureRef = useRef(false);
+  const lastSaveErrorToastRef = useRef(0);
 
   // Load initial state
   useEffect(() => {
@@ -64,9 +66,18 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
     saveTimeoutRef.current = setTimeout(async () => {
       try {
         await saveState(sessionId, newState);
+        if (saveFailureRef.current) {
+          toast.success('Connexion à l\'API restaurée, synchronisation active');
+        }
+        saveFailureRef.current = false;
       } catch (error) {
         console.error('Error saving state:', error);
-        toast.error('Erreur lors de la sauvegarde distante');
+        const now = Date.now();
+        if (!saveFailureRef.current || now - lastSaveErrorToastRef.current > 30000) {
+          toast.error('Sauvegarde distante indisponible, vos données restent stockées localement');
+          lastSaveErrorToastRef.current = now;
+        }
+        saveFailureRef.current = true;
       }
     }, 500);
   }, [sessionId]);
