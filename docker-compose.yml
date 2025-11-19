@@ -20,17 +20,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_CRISIS_API_URL: ${VITE_CRISIS_API_URL:-http://crisis-api:4000}
-        VITE_DEFAULT_SESSION_ID: ${VITE_DEFAULT_SESSION_ID:-default}
+        # On laisse l'URL vide pour que le front détecte automatiquement
+        VITE_DEFAULT_SESSION_ID: "crisis-session-001"
     container_name: crisis-frontend
     restart: unless-stopped
     depends_on:
       - crisis-api
     ports:
       - "8080:8080"
-    environment:
-      - VITE_CRISIS_API_URL=${VITE_CRISIS_API_URL:-http://crisis-api:4000}
-      - VITE_DEFAULT_SESSION_ID=${VITE_DEFAULT_SESSION_ID:-default}
 
 volumes:
   crisis_state_data:

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Gavel, MessageSquare, FileText, Shield, Book, Info } from "lucide-react";
+import { Home, Gavel, MessageSquare, FileText, Shield, Book } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,7 +22,6 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
   const location = useLocation();
 
   const mainNavItems = [
-    { title: "Introduction", url: "/introduction", icon: Info },
     { title: "Accueil", url: "/dashboard", icon: Home },
     { title: "RIDA", url: "/decisions", icon: Gavel },
     { title: "Communications", url: "/communications", icon: MessageSquare },
