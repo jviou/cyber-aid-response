@@ -1,25 +1,18 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { CrisisStateProvider } from "@/hooks/useCrisisState";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { CrisisLayout } from "@/components/CrisisLayout";
 
-const App = () => {
+function App() {
   return (
-    <CrisisStateProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/*" element={<CrisisLayout />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </CrisisStateProvider>
+    <TooltipProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/*" element={<CrisisLayout />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
   );
-};
+}
 
 export default App;
