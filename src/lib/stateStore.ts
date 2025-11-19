@@ -119,6 +119,7 @@ let preferredApiBase: string | null = null;
 
 async function fetchWithApi(path: string, init?: RequestInit) {
   const tried = new Set<string>();
+
   const ordered = preferredApiBase
     ? [preferredApiBase, ...API_BASE_CANDIDATES.filter((b) => b !== preferredApiBase)]
     : API_BASE_CANDIDATES;
@@ -132,10 +133,20 @@ async function fetchWithApi(path: string, init?: RequestInit) {
     const url = `${base}${path}`;
     try {
       const res = await fetch(url, init);
+
+      // 1) Statut HTTP OK ?
       if (!res.ok) {
         lastError = new Error(`Request failed with status ${res.status} for ${url}`);
         continue;
       }
+
+      // 2) Vérifier qu'on parle bien à l'API (JSON), pas au frontend (HTML)
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        lastError = new Error(`Non-JSON response from ${url} (${contentType})`);
+        continue;
+      }
+
       preferredApiBase = base;
       return res;
     } catch (err) {
