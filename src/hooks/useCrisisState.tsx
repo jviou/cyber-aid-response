@@ -1,118 +1,144 @@
-import { useEffect, useState, useCallback } from "react";
-import type { AppState } from "@/lib/stateStore";
+// src/hooks/useCrisisState.tsx
+// Hook unique pour gérer l’état + synchro régulière avec l’API
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AppState,
+  fetchRemoteSnapshot,
   getDefaultState,
   getOrCreateSessionId,
   loadState,
   saveState,
-  fetchRemoteSnapshot,
 } from "@/lib/stateStore";
 
-const SYNC_INTERVAL_MS =
-  Number(import.meta.env.VITE_SYNC_INTERVAL_MS || 5000); // 5s par défaut
-
-interface UseCrisisStateResult {
+interface CrisisStateHook {
   state: AppState;
+  setState: (updater: (prev: AppState) => AppState) => void;
   sessionId: string;
-  isLoading: boolean;
-  updateState: (updater: (prev: AppState) => AppState) => void;
-  reloadFromServer: () => Promise<void>;
+  loading: boolean;
+  saving: boolean;
+  lastSyncAt: string | null;
+  forceReload: () => Promise<void>;
 }
 
-export function useCrisisState(): UseCrisisStateResult {
-  const [sessionId] = useState(() => getOrCreateSessionId());
-  const [state, setState] = useState<AppState>(() => getDefaultState());
-  const [isLoading, setIsLoading] = useState(true);
+const POLL_INTERVAL_MS = 5_000; // 5 secondes
 
-  // Chargement initial depuis l'API (ou local si l’API ne répond pas)
+export function useCrisisState(): CrisisStateHook {
+  const initialSessionId =
+    typeof window !== "undefined" ? getOrCreateSessionId() : "crisis-session-001";
+
+  const [sessionId] = useState<string>(initialSessionId);
+  const [state, setStateInternal] = useState<AppState>(getDefaultState);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+
+  const lastRemoteSnapshotRef = useRef<string | null>(null);
+  const isMountedRef = useRef<boolean>(false);
+
+  // Chargement initial -------------------------------------------------------
   useEffect(() => {
-    let cancelled = false;
+    isMountedRef.current = true;
 
     (async () => {
       try {
-        setIsLoading(true);
-        const initial = await loadState(sessionId);
-        if (!cancelled) {
-          setState(initial);
-        }
+        const loaded = await loadState(sessionId);
+        if (!isMountedRef.current) return;
+        setStateInternal(loaded);
+        setLastSyncAt(new Date().toISOString());
       } catch (error) {
-        console.warn("Failed to load initial crisis state:", error);
+        console.error("Error loading crisis state:", error);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
         }
       }
     })();
 
     return () => {
-      cancelled = true;
+      isMountedRef.current = false;
     };
   }, [sessionId]);
 
-  // Fonction pour mettre à jour l'état local + pousser vers l'API
-  const updateState = useCallback(
+  // Mise à jour locale + remote ---------------------------------------------
+  const setState = useCallback(
     (updater: (prev: AppState) => AppState) => {
-      setState((prev) => {
+      setStateInternal((prev) => {
         const next = updater(prev);
-        // on pousse en arrière-plan vers l'API
-        void saveState(sessionId, next).catch((error) => {
-          console.warn("Failed to save crisis state:", error);
-        });
+        // écrit directement en local, la partie remote est async
+        (async () => {
+          try {
+            setSaving(true);
+            await saveState(sessionId, next);
+            if (isMountedRef.current) {
+              setLastSyncAt(new Date().toISOString());
+            }
+          } catch (error) {
+            console.error("Error saving crisis state:", error);
+          } finally {
+            if (isMountedRef.current) {
+              setSaving(false);
+            }
+          }
+        })();
         return next;
       });
     },
-    [sessionId],
+    [sessionId]
   );
 
-  // Reload manuel depuis le serveur (si un jour tu veux un bouton "Recharger")
-  const reloadFromServer = useCallback(async () => {
-    try {
-      const remote = await fetchRemoteSnapshot(sessionId);
-      if (remote) {
-        setState(remote);
-      }
-    } catch (error) {
-      console.warn("Failed to reload crisis state from server:", error);
-    }
-  }, [sessionId]);
-
-  // Synchronisation automatique périodique (polling)
+  // Polling régulier pour récupérer les changements d’un autre poste --------
   useEffect(() => {
-    if (!SYNC_INTERVAL_MS || SYNC_INTERVAL_MS < 500) return;
+    if (typeof window === "undefined") return;
+    if (!sessionId) return;
 
-    let cancelled = false;
-
-    const timer = setInterval(async () => {
+    const intervalId = window.setInterval(async () => {
       try {
         const remote = await fetchRemoteSnapshot(sessionId);
-        if (!remote || cancelled) return;
+        if (!remote) return;
 
-        setState((current) => {
-          // Si rien n'a changé, on ne touche pas au state
-          const currentStr = JSON.stringify(current);
-          const remoteStr = JSON.stringify(remote);
-          if (currentStr === remoteStr) {
-            return current;
-          }
-          // Sinon on met à jour avec la version distante
-          return remote;
-        });
+        const serialized = JSON.stringify(remote);
+        if (serialized === lastRemoteSnapshotRef.current) {
+          return;
+        }
+
+        lastRemoteSnapshotRef.current = serialized;
+        if (isMountedRef.current) {
+          setStateInternal(remote);
+          setLastSyncAt(new Date().toISOString());
+        }
       } catch (error) {
-        console.warn("Background sync failed:", error);
+        console.warn("Error polling remote crisis state:", error);
       }
-    }, SYNC_INTERVAL_MS);
+    }, POLL_INTERVAL_MS);
 
     return () => {
-      cancelled = true;
-      clearInterval(timer);
+      window.clearInterval(intervalId);
     };
+  }, [sessionId]);
+
+  // Reload manuel (bouton éventuel) -----------------------------------------
+  const forceReload = useCallback(async () => {
+    try {
+      setLoading(true);
+      const fresh = await loadState(sessionId);
+      if (!isMountedRef.current) return;
+      setStateInternal(fresh);
+      setLastSyncAt(new Date().toISOString());
+    } catch (error) {
+      console.error("Error reloading crisis state:", error);
+    } finally {
+      if (isMountedRef.current) setLoading(false);
+    }
   }, [sessionId]);
 
   return {
     state,
+    setState,
     sessionId,
-    isLoading,
-    updateState,
-    reloadFromServer,
+    loading,
+    saving,
+    lastSyncAt,
+    forceReload,
   };
 }
