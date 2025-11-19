@@ -82,4 +82,4 @@ docker compose up --build
 
 This will expose the Crisis Labs UI on port `8080` and the shared state API on port `4000`. The session state is stored inside a named Docker volume (`crisis_state_data`) so restarting the stack on a Linux server preserves previously recorded crises.
 
-
+> ℹ️  L'interface web tente d'abord d'appeler `/api` sur le même domaine (idéal derrière un reverse proxy) puis bascule automatiquement sur le port `4000` du même hôte ou sur `127.0.0.1:4000`. Si votre API est exposée ailleurs (reverse proxy différent, HTTPS dédié, autre port), définissez les variables `VITE_CRISIS_API_URL` ou `VITE_CRISIS_API_PORT` avant le `npm run build` pour préciser l'adresse publique atteignable par les navigateurs.

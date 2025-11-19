@@ -5,7 +5,6 @@ import { AlertTriangle, Settings, Clock } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 
 interface PhaseManagementProps {
   sessionId: string;
@@ -164,16 +163,20 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Échéance</label>
-                    <div className="flex items-center gap-2">
-                      <Input 
-                        placeholder="jj/mm/aaaa --:--"
-                        className="text-sm h-8"
-                        defaultValue="jj/mm/aaaa --:--"
-                      />
-                      <Button size="sm" variant="outline" className="h-8 px-2">
-                        📅
-                      </Button>
-                    </div>
+                    <Input
+                      placeholder="Note ou deadline (optionnel)"
+                      className="text-sm h-8"
+                      value={item.dueAt || ''}
+                      onChange={(event) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            strategic: p.strategic.map(si => si.id === item.id ? { ...si, dueAt: event.target.value } : si)
+                          } : p)
+                        }))
+                      }
+                    />
                   </div>
                 </div>
               </div>
@@ -250,16 +253,20 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Échéance</label>
-                    <div className="flex items-center gap-2">
-                      <Input 
-                        placeholder="jj/mm/aaaa --:--"
-                        className="text-sm h-8"
-                        defaultValue="jj/mm/aaaa --:--"
-                      />
-                      <Button size="sm" variant="outline" className="h-8 px-2">
-                        📅
-                      </Button>
-                    </div>
+                    <Input
+                      placeholder="Note ou deadline (optionnel)"
+                      className="text-sm h-8"
+                      value={item.dueAt || ''}
+                      onChange={(event) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            operational: p.operational.map(oi => oi.id === item.id ? { ...oi, dueAt: event.target.value } : oi)
+                          } : p)
+                        }))
+                      }
+                    />
                   </div>
                 </div>
               </div>

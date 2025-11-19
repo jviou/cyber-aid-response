@@ -228,6 +228,26 @@ function sanitizeState(rawState?: Partial<AppState> | null): AppState {
   };
 }
 
+function normalizeAppState(rawState?: Partial<AppState> | null): AppState {
+  const fallback = getDefaultState();
+  if (!rawState) {
+    return fallback;
+  }
+
+  return {
+    meta: {
+      title: rawState.meta?.title || fallback.meta.title,
+      mode: rawState.meta?.mode || fallback.meta.mode,
+      severity: rawState.meta?.severity || fallback.meta.severity,
+      createdAt: rawState.meta?.createdAt || fallback.meta.createdAt
+    },
+    contacts: Array.isArray(rawState.contacts) ? rawState.contacts : [],
+    decisions: Array.isArray(rawState.decisions) ? rawState.decisions : [],
+    communications: Array.isArray(rawState.communications) ? rawState.communications : [],
+    phases: Array.isArray(rawState.phases) ? rawState.phases : fallback.phases
+  };
+}
+
 function readLocalState(sessionId: string): AppState | null {
   try {
     const stored = localStorage.getItem(`crisis-state-${sessionId}`);
@@ -272,14 +292,14 @@ async function deleteRemoteState(sessionId: string): Promise<void> {
 export async function loadState(sessionId: string): Promise<AppState> {
   const remoteState = await fetchRemoteState(sessionId);
   if (remoteState) {
-    const sanitizedRemote = sanitizeState(remoteState);
+    const sanitizedRemote = normalizeAppState(remoteState);
     localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitizedRemote));
     return sanitizedRemote;
   }
 
   const localState = readLocalState(sessionId);
   if (localState) {
-    const sanitizedLocal = sanitizeState(localState);
+    const sanitizedLocal = normalizeAppState(localState);
     try {
       await persistRemoteState(sessionId, sanitizedLocal);
     } catch (error) {
@@ -299,7 +319,7 @@ export async function loadState(sessionId: string): Promise<AppState> {
 }
 
 export async function saveState(sessionId: string, state: AppState): Promise<void> {
-  const sanitizedState = sanitizeState(state);
+  const sanitizedState = normalizeAppState(state);
   localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitizedState));
   await persistRemoteState(sessionId, sanitizedState);
 }
@@ -326,7 +346,7 @@ export async function importJSON(file: File): Promise<AppState> {
     reader.onload = (e) => {
       try {
         const rawState = JSON.parse(e.target?.result as string);
-        resolve(sanitizeState(rawState));
+        resolve(normalizeAppState(rawState));
       } catch (error) {
         reject(new Error("Invalid JSON file"));
       }
