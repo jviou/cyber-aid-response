@@ -1,7 +1,9 @@
 // src/lib/stateStore.ts
-// Pas de Supabase : stockage local + API Node simple
+// Version simplifiée : stockage 100% localStorage, pas d’API distante.
 
-// ===== Types d'état =========================================================
+import { defaultPhases } from "@/data/crisisData";
+
+// ===== Types ===============================================================
 
 export interface AppState {
   meta: {
@@ -84,86 +86,12 @@ export interface AppState {
   }>;
 }
 
-// ===== Config API ===========================================================
+// ===== Session & état par défaut ==========================================
 
 const SESSION_ID_KEY = "crisis_session_id";
-
-// ID de session par défaut (permet de forcer tout le monde sur la même)
 const DEFAULT_SESSION_ID =
   (import.meta.env.VITE_DEFAULT_SESSION_ID as string | undefined) ||
   "crisis-session-001";
-
-const configuredApiUrl = (
-  import.meta.env.VITE_CRISIS_API_URL as string | undefined
-)?.trim();
-const API_STATE_PATH = "/api/state";
-
-function buildApiBaseCandidates(): string[] {
-  const bases: string[] = [];
-  const seen = new Set<string>();
-
-  const add = (value?: string | null) => {
-    if (!value && value !== "") return;
-    const trimmed = value.trim();
-    // '' = même origine
-    const normalized = trimmed === "" ? "" : trimmed.replace(/\/$/, "");
-    if (seen.has(normalized)) return;
-    seen.add(normalized);
-    bases.push(normalized);
-  };
-
-  // 1) Valeur de VITE_CRISIS_API_URL si définie (dev .env.local par ex.)
-  if (configuredApiUrl) add(configuredApiUrl);
-
-  if (typeof window !== "undefined" && window.location) {
-    const { protocol, hostname } = window.location;
-
-    // 2) Même origine (proxy inverse éventuel)
-    add("");
-
-    // 3) Même host, port 4000 (cas Docker : front 8080, API 4000)
-    add(`${protocol}//${hostname}:4000`);
-  }
-
-  // 4) Fallback : localhost:4000
-  add("http://127.0.0.1:4000");
-
-  return bases;
-}
-
-const API_BASE_CANDIDATES = buildApiBaseCandidates();
-let preferredApiBase: string | null = null;
-
-async function fetchWithApi(path: string, init?: RequestInit) {
-  const tried = new Set<string>();
-  const ordered = preferredApiBase
-    ? [preferredApiBase, ...API_BASE_CANDIDATES.filter((b) => b !== preferredApiBase)]
-    : API_BASE_CANDIDATES;
-
-  let lastError: unknown = null;
-
-  for (const base of ordered) {
-    if (tried.has(base)) continue;
-    tried.add(base);
-
-    const url = `${base}${path}`;
-    try {
-      const res = await fetch(url, init);
-      if (!res.ok) {
-        lastError = new Error(`Request failed with status ${res.status} for ${url}`);
-        continue;
-      }
-      preferredApiBase = base;
-      return res;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError ?? new Error("Unable to reach crisis API");
-}
-
-// ===== Génération d'ID de session ==========================================
 
 export function generateSessionId(): string {
   const globalCrypto =
@@ -185,17 +113,14 @@ export function generateSessionId(): string {
 }
 
 export function getOrCreateSessionId(): string {
-  let sessionId = DEFAULT_SESSION_ID || localStorage.getItem(SESSION_ID_KEY);
+  let sessionId =
+    DEFAULT_SESSION_ID || localStorage.getItem(SESSION_ID_KEY) || "";
   if (!sessionId) {
     sessionId = generateSessionId();
   }
   localStorage.setItem(SESSION_ID_KEY, sessionId);
   return sessionId;
 }
-
-// ===== État par défaut ======================================================
-
-import { defaultPhases } from "@/data/crisisData";
 
 export function getDefaultState(): AppState {
   return {
@@ -231,7 +156,6 @@ export function getDefaultState(): AppState {
   };
 }
 
-// Petite sécurité si un JSON part en vrille
 function sanitizeState(rawState?: Partial<AppState> | null): AppState {
   const fallback = getDefaultState();
   if (!rawState) return fallback;
@@ -254,7 +178,7 @@ function sanitizeState(rawState?: Partial<AppState> | null): AppState {
   };
 }
 
-// ===== LocalStorage =========================================================
+// ===== LocalStorage simple ==================================================
 
 function readLocalState(sessionId: string): AppState | null {
   try {
@@ -266,78 +190,26 @@ function readLocalState(sessionId: string): AppState | null {
   }
 }
 
-// ===== API distante =========================================================
-
-async function fetchRemoteState(sessionId: string): Promise<AppState | null> {
+function writeLocalState(sessionId: string, state: AppState) {
   try {
-    const res = await fetchWithApi(
-      `${API_STATE_PATH}?sessionId=${encodeURIComponent(sessionId)}`
+    const sanitized = sanitizeState(state);
+    localStorage.setItem(
+      `crisis-state-${sessionId}`,
+      JSON.stringify(sanitized)
     );
-    const data = await res.json();
-    return data?.state ? sanitizeState(data.state) : null;
-  } catch (error) {
-    console.warn(
-      "Unable to fetch remote state via available endpoints:",
-      error
-    );
-    return null;
+  } catch (err) {
+    console.error("Error writing local state:", err);
   }
 }
 
-async function persistRemoteState(
-  sessionId: string,
-  state: AppState
-): Promise<void> {
-  const res = await fetchWithApi(API_STATE_PATH, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId, state }),
-  });
-  if (!res.ok) {
-    throw new Error("Failed to persist remote state");
-  }
-}
-
-async function deleteRemoteState(sessionId: string): Promise<void> {
-  try {
-    await fetchWithApi(
-      `${API_STATE_PATH}/${encodeURIComponent(sessionId)}`,
-      { method: "DELETE" }
-    );
-  } catch (error) {
-    console.warn("Unable to delete remote state:", error);
-  }
-}
-
-// ===== API publique utilisée par le hook ====================================
+// ===== API publique utilisée par le hook ===================================
 
 export async function loadState(sessionId: string): Promise<AppState> {
-  // 1) Essayer la version distante
-  const remote = await fetchRemoteState(sessionId);
-  if (remote) {
-    localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
-    return remote;
-  }
-
-  // 2) Sinon, tomber sur le local
   const local = readLocalState(sessionId);
-  if (local) {
-    try {
-      await persistRemoteState(sessionId, local);
-    } catch (error) {
-      console.warn("Unable to sync local state to remote:", error);
-    }
-    return local;
-  }
+  if (local) return local;
 
-  // 3) Sinon, créer un état par défaut
   const def = getDefaultState();
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(def));
-  try {
-    await persistRemoteState(sessionId, def);
-  } catch (error) {
-    console.warn("Unable to persist default state remotely:", error);
-  }
+  writeLocalState(sessionId, def);
   return def;
 }
 
@@ -345,19 +217,14 @@ export async function saveState(
   sessionId: string,
   state: AppState
 ): Promise<void> {
-  const sanitized = sanitizeState(state);
-  localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(sanitized));
-  await persistRemoteState(sessionId, sanitized);
+  writeLocalState(sessionId, state);
 }
 
 export async function deleteState(sessionId: string): Promise<void> {
   localStorage.removeItem(`crisis-state-${sessionId}`);
-  await deleteRemoteState(sessionId);
 }
 
-export async function resetSession(
-  currentSessionId: string
-): Promise<string> {
+export async function resetSession(currentSessionId: string): Promise<string> {
   await deleteState(currentSessionId);
   const newSessionId = DEFAULT_SESSION_ID || generateSessionId();
   localStorage.setItem(SESSION_ID_KEY, newSessionId);
@@ -367,11 +234,11 @@ export async function resetSession(
 export async function fetchRemoteSnapshot(
   sessionId: string
 ): Promise<AppState | null> {
-  return fetchRemoteState(sessionId);
+  // version locale seulement => pas de remote
+  return readLocalState(sessionId);
 }
 
-// ===== Import JSON depuis fichier ==========================================
-
+// Import JSON depuis fichier (gardé pour les exports / imports manuels)
 export async function importJSON(file: File): Promise<AppState> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
