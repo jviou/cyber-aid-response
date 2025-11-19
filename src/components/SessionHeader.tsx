@@ -14,7 +14,7 @@ import {
   Save
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { importJSON, resetSession, saveState } from "@/lib/stateStore";
+import { resetSession, saveState } from "@lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
