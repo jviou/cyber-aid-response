@@ -1,11 +1,11 @@
 // No Supabase - local only
-import { defaultPhases } from '@/data/crisisData';
+import { defaultPhases } from "@/data/crisisData";
 
 export interface AppState {
   meta: {
     title: string;
-    mode: 'real' | 'exercise';
-    severity: 'Low' | 'Modérée' | 'Élevée' | 'Critique';
+    mode: "real" | "exercise";
+    severity: "Low" | "Modérée" | "Élevée" | "Critique";
     createdAt: string;
   };
   contacts: Array<{
@@ -31,7 +31,7 @@ export interface AppState {
     sentAt: string;
   }>;
   phases: Array<{
-    id: 'P1' | 'P2' | 'P3' | 'P4';
+    id: "P1" | "P2" | "P3" | "P4";
     title: string;
     strategic: Array<{
       id: string;
@@ -119,9 +119,9 @@ async function fetchWithApi(path: string, init?: RequestInit) {
 
 export function generateSessionId(): string {
   const globalCrypto =
-    typeof window !== 'undefined'
+    typeof window !== "undefined"
       ? window.crypto
-      : typeof globalThis !== 'undefined'
+      : typeof globalThis !== "undefined"
       ? (globalThis as any).crypto
       : undefined;
 
@@ -131,7 +131,7 @@ export function generateSessionId(): string {
 
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -145,35 +145,66 @@ export function getOrCreateSessionId(): string {
   return sessionId;
 }
 
+// --------- État par défaut ---------
+
 export function getDefaultState(): AppState {
   return {
     meta: {
-      title: 'Nouvelle Session de Crise',
-      mode: 'exercise',
-      severity: 'Modérée',
-      createdAt: new Date().toISOString()
+      title: "Nouvelle Session de Crise",
+      mode: "exercise",
+      severity: "Modérée",
+      createdAt: new Date().toISOString(),
     },
     contacts: [],
     decisions: [],
     communications: [],
-    phases: defaultPhases.map(p => ({
-      id: p.id as 'P1' | 'P2' | 'P3' | 'P4',
-      title: `${p.title} - ${p.subtitle || ''}`.trim(),
-      strategic: (p.checklist?.strategic || []).map(item => ({
+    phases: defaultPhases.map((p) => ({
+      id: p.id as "P1" | "P2" | "P3" | "P4",
+      title: `${p.title} - ${p.subtitle || ""}`.trim(),
+      strategic: (p.checklist?.strategic || []).map((item) => ({
         id: item.id,
         text: item.text,
-        checked: item.status === 'done',
+        checked: item.status === "done",
         assignee: null,
-        dueAt: null
+        dueAt: null,
       })),
-      operational: (p.checklist?.operational || []).map(item => ({
+      operational: (p.checklist?.operational || []).map((item) => ({
         id: item.id,
         text: item.text,
-        checked: item.status === 'done',
+        checked: item.status === "done",
         assignee: null,
-        dueAt: null
-      }))
-    }))
+        dueAt: null,
+      })),
+    })),
+  };
+}
+
+// Normalise / sécurise un state partiellement corrompu ou incomplet
+function sanitizeState(rawState?: Partial<AppState> | null): AppState {
+  const fallback = getDefaultState();
+  if (!rawState) {
+    return fallback;
+  }
+
+  return {
+    meta: {
+      title: rawState.meta?.title || fallback.meta.title,
+      mode: rawState.meta?.mode || fallback.meta.mode,
+      severity: rawState.meta?.severity || fallback.meta.severity,
+      createdAt: rawState.meta?.createdAt || fallback.meta.createdAt,
+    },
+    contacts: Array.isArray(rawState.contacts) ? rawState.contacts : [],
+    journal: Array.isArray(rawState.journal) ? rawState.journal : [],
+    actions: Array.isArray(rawState.actions) ? rawState.actions : [],
+    decisions: Array.isArray(rawState.decisions)
+      ? rawState.decisions
+      : [],
+    communications: Array.isArray(rawState.communications)
+      ? rawState.communications
+      : [],
+    phases: Array.isArray(rawState.phases)
+      ? rawState.phases
+      : fallback.phases,
   };
 }
 
@@ -297,10 +328,10 @@ export async function importJSON(file: File): Promise<AppState> {
         const rawState = JSON.parse(e.target?.result as string);
         resolve(sanitizeState(rawState));
       } catch (error) {
-        reject(new Error('Invalid JSON file'));
+        reject(new Error("Invalid JSON file"));
       }
     };
-    reader.onerror = () => reject(new Error('Error reading file'));
+    reader.onerror = () => reject(new Error("Error reading file"));
     reader.readAsText(file);
   });
 }
