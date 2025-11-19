@@ -385,7 +385,6 @@ export function DecisionsPage() {
         </CardContent>
       </Card>
 
-      {/* Instructions */}
       <Card className="bg-blue-50">
         <CardContent className="pt-6">
           <h3 className="font-medium mb-3">Instructions d&apos;utilisation du RIDA</h3>

@@ -34,7 +34,15 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
       try {
         const id = getOrCreateSessionId();
         setSessionId(id);
-        const loadedState = await loadState(id);
+        const loadedState = await loadState(id, {
+          onRemoteLoadError: () => {
+            const now = Date.now();
+            if (now - lastLoadErrorToastRef.current > 30000) {
+              toast.error('API distante indisponible, chargement du cache local');
+              lastLoadErrorToastRef.current = now;
+            }
+          }
+        });
         setState(loadedState);
       } catch (error) {
         console.error('Error initializing state:', error);
@@ -85,15 +93,26 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
   const updateState = useCallback((updater: (state: AppState) => AppState) => {
     setState(prevState => {
       const newState = updater(prevState);
-      debouncedSave(newState);
-      return newState;
+      const timestampedState: AppState = {
+        ...newState,
+        meta: {
+          ...newState.meta,
+          updatedAt: new Date().toISOString()
+        }
+      };
+      debouncedSave(timestampedState);
+      return timestampedState;
     });
   }, [debouncedSave]);
 
   const refreshState = useCallback(async () => {
     try {
       setIsLoading(true);
-      const refreshedState = await loadState(sessionId);
+      const refreshedState = await loadState(sessionId, {
+        onRemoteLoadError: () => {
+          toast.error('Impossible de contacter l\'API, données locales affichées');
+        }
+      });
       setState(refreshedState);
     } catch (error) {
       console.error('Error refreshing state:', error);

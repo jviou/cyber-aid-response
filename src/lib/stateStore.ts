@@ -7,6 +7,7 @@ export interface AppState {
     mode: "real" | "exercise";
     severity: "Low" | "Modérée" | "Élevée" | "Critique";
     createdAt: string;
+    updatedAt: string;
   };
   contacts: Array<{
     id: string;
@@ -196,6 +197,7 @@ export function getOrCreateSessionId(): string {
 // ----------------- État par défaut -----------------
 
 export function getDefaultState(): AppState {
+  const now = new Date().toISOString();
   return {
     meta: {
       title: "Nouvelle Session de Crise",
@@ -204,8 +206,6 @@ export function getDefaultState(): AppState {
       createdAt: new Date().toISOString(),
     },
     contacts: [],
-    journal: [],
-    actions: [],
     decisions: [],
     communications: [],
     phases: defaultPhases.map((p) => ({

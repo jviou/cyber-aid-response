@@ -80,6 +80,14 @@ async function loadAllSessions() {
   } catch {
     return { sessions: {} };
   }
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Crisis API server listening on http://0.0.0.0:${PORT}`);
+});
+
+async function ensureStateDir() {
+  await fsp.mkdir(STATE_DIR, { recursive: true });
 }
 
 async function saveAllSessions(data) {
