@@ -1,85 +1,72 @@
-# Welcome to your Lovable project
+# Crisis Manager - Application de Gestion de Crise
 
-## Project info
+Une application web robuste pour la gestion de crise cybersécurité en temps réel, conçue pour être déployée localement de manière autonome.
 
-**URL**: https://lovable.dev/projects/501cc756-8303-48e6-89c5-ca74b9ce5150
+## Fonctionnalités Clés
+- **Monolithique & Autonome** : Frontend et Backend unifiés en un seul conteneur Docker.
+- **Temps Réel** : Synchronisation instantanée entre tous les clients connectés (WebSocket).
+- **Persistante** : Les données sont sauvegardées localement et survivent aux redémarrages.
+- **Modes** : Basculez entre un mode "Exercice" et "Réel".
+- **Robuste** : Gestion automatique des erreurs, validation des données et interface résiliente.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Installation & Déploiement
 
-**Use Lovable**
+Cette application est conçue pour être "Full Deployable" sur n'importe quelle machine équipée de Docker.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/501cc756-8303-48e6-89c5-ca74b9ce5150) and start prompting.
+### 1. Prérequis
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/Mac) ou Docker Engine (Linux).
+- C'est tout.
 
-Changes made via Lovable will be committed automatically to this repo.
+### 2. Démarrer l'application
+Ouvrez un terminal dans le dossier du projet et lancez :
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+docker-compose up -d --build
 ```
 
-**Edit a file directly in GitHub**
+- L'application sera accessible à l'adresse : **http://localhost:8080**
+- Le port `8080` est le seul port à ouvrir.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 3. Mettre à jour / Redémarrer
+Pour mettre à jour l'application ou forcer un redémarrage propre :
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/501cc756-8303-48e6-89c5-ca74b9ce5150) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-
-## Run everything with Docker Compose
-
-Build and run the multi-user stack (frontend + state API) locally with Docker Compose:
-
-```sh
-docker compose up --build
+```bash
+docker-compose down
+docker-compose up -d --build
 ```
 
-This will expose the Crisis Labs UI on port `8080` and the shared state API on port `4000`. The session state is stored inside a named Docker volume (`crisis_state_data`) so restarting the stack on a Linux server preserves previously recorded crises.
+---
 
-> ℹ️  L'interface web tente d'abord d'appeler `/api` sur le même domaine (idéal derrière un reverse proxy) puis bascule automatiquement sur le port `4000` du même hôte ou sur `127.0.0.1:4000`. Si votre API est exposée ailleurs (reverse proxy différent, HTTPS dédié, autre port), définissez les variables `VITE_CRISIS_API_URL` ou `VITE_CRISIS_API_PORT` avant le `npm run build` pour préciser l'adresse publique atteignable par les navigateurs.
+## 💾 Données & Sauvegarde
+
+Vos données sont **persistantes**.
+Elles sont stockées dans le dossier `./data` situé à la racine du projet (sur votre machine hôte).
+
+- Le fichier principal est `session-v2.json`.
+- Ce dossier est "monté" dans le conteneur Docker.
+- **Vous pouvez copier ce dossier** pour sauvegarder vos crises ou transférer l'état sur une autre machine.
+
+---
+
+## 🛠 Dépannage
+
+### L'application ne charge pas les dernières modifications ?
+Si vous avez fait une mise à jour mais que l'interface semble ancienne, forcez le rafraîchissement du cache navigateur :
+- **Windows/Linux** : `Ctrl + F5`
+- **Mac** : `Cmd + Shift + R`
+
+### Réinitialiser la session ("Repartir à zéro")
+Vous pouvez réinitialiser la session directement depuis l'interface (Menu Session -> Réinitialiser Tout).
+En cas de problème grave, vous pouvez aussi :
+1. Arrêter le conteneur : `docker-compose down`
+2. Supprimer le fichier `data/session-v2.json`.
+3. Redémarrer : `docker-compose up -d`
+
+---
+
+## 🏗 Architecture Technique
+- **Serveur** : Node.js (Express + Socket.io) servant à la fois l'API et les fichiers statiques.
+- **Frontend** : React + Vite + TailwindCSS.
+- **Build** : Multi-stage Docker build (optimisé pour la production).

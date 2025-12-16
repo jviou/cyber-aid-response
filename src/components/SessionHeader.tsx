@@ -1,26 +1,27 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { 
-  Download, 
-  Upload, 
-  RotateCcw, 
+import {
+  Download,
+  Upload,
+  RotateCcw,
   Menu,
-  Save
+  Save,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import { importJSON, resetSession, saveState } from "@/lib/stateStore";
+import { importJSON } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 export function SessionHeader() {
-  const { state, sessionId, updateState } = useCrisisState();
+  const { state, updateState, socket } = useCrisisState();
   const [isResetting, setIsResetting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -45,12 +46,19 @@ export function SessionHeader() {
 
     try {
       const importedState = await importJSON(file);
+      // Update local state AND broadcast via socket (handled by updateState implementation)
       updateState(() => importedState);
-      toast.success("Session importée avec succès");
+
+      // Explicitly emit import event if we want easier server logging, 
+      // but client-update covers it. 
+      // User asked for "Import JSON : charger un JSON et remplacer l’état actif"
+      // Sending it via updateState triggers client-update.
+
+      toast.success("Session importée avec succès (Synchronisation en cours...)");
     } catch (error) {
       toast.error("Erreur lors de l'import");
     }
-    
+
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -58,15 +66,18 @@ export function SessionHeader() {
   };
 
   const handleReset = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir réinitialiser la session ? Toutes les données seront perdues.")) {
+    if (!confirm("Êtes-vous sûr de vouloir réinitialiser la session ? TOUS LES CLIENTS seront réinitialisés/effacés.")) {
       return;
     }
 
     setIsResetting(true);
     try {
-      await resetSession(sessionId);
-      // Reload the page to reinitialize everything
-      window.location.reload();
+      if (socket && socket.connected) {
+        socket.emit("reset-session");
+        toast.success("Réinitialisation envoyée au serveur");
+      } else {
+        toast.error("Impossible de réinitialiser : Non connecté au serveur");
+      }
     } catch (error) {
       console.error('Error resetting session:', error);
       toast.error("Erreur lors de la réinitialisation");
@@ -76,15 +87,14 @@ export function SessionHeader() {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await saveState(sessionId, state);
-      toast.success("Session sauvegardée");
-    } catch (error) {
-      console.error('Error saving session:', error);
-      toast.error("API de sauvegarde indisponible, les données restent en local");
-    } finally {
-      setIsSaving(false);
+    // In real-time mode, saving is automatic. 
+    // This button can be a manual trigger to re-sync or just a visual confirmation.
+    if (socket && socket.connected) {
+      // Force emit current state
+      socket.emit("client-update", state);
+      toast.success("État synchronisé avec le serveur");
+    } else {
+      toast.error("Erreur : Non connecté au serveur");
     }
   };
 
@@ -93,18 +103,21 @@ export function SessionHeader() {
       <div className="flex h-14 items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <h1 className="text-lg font-semibold">{state.meta.title}</h1>
-          <div className="text-sm text-muted-foreground">
-            {state.meta.mode === 'real' ? '🔴 Mode Réel' : '🟡 Mode Exercice'} 
-            - {state.meta.severity}
-          </div>
+          {/* Visual connection indicator */}
+          {socket?.connected ? (
+            <div title="Connecté" className="flex items-center text-green-500 text-xs gap-1">
+              <Wifi className="w-4 h-4" />
+            </div>
+          ) : (
+            <div title="Déconnecté" className="flex items-center text-destructive text-xs gap-1">
+              <WifiOff className="w-4 h-4" />
+              Déconnecté
+            </div>
+          )}
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Sauvegarde…' : 'Sauvegarder'}
-          </Button>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -121,17 +134,17 @@ export function SessionHeader() {
                 <Upload className="w-4 h-4 mr-2" />
                 Importer JSON
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleReset}
                 disabled={isResetting}
                 className="text-destructive focus:text-destructive"
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                {isResetting ? 'Réinitialisation...' : 'Réinitialiser Session'}
+                {isResetting ? 'Réinitialisation...' : 'Réinitialiser Tout'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           <input
             ref={fileInputRef}
             type="file"

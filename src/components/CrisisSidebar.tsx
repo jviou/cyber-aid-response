@@ -15,9 +15,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface CrisisSidebarProps {
   sessionMode?: "exercise" | "real";
+  onToggleMode?: () => void;
 }
 
-export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
+export function CrisisSidebar({ sessionMode, onToggleMode }: CrisisSidebarProps) {
   const { state } = useSidebar();
   const location = useLocation();
 
@@ -37,11 +38,10 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
   ];
 
   const isActive = (path: string) => location.pathname === path;
-  const getNavClassName = (isActive: boolean) => 
-    `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-      isActive 
-        ? "bg-primary text-primary-foreground font-medium" 
-        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+  const getNavClassName = (isActive: boolean) =>
+    `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActive
+      ? "bg-primary text-primary-foreground font-medium"
+      : "text-muted-foreground hover:text-foreground hover:bg-muted"
     }`;
 
   return (
@@ -57,9 +57,11 @@ export function CrisisSidebar({ sessionMode }: CrisisSidebarProps) {
               <div>
                 <h2 className="font-semibold text-sm">Crisis Manager</h2>
                 {sessionMode && (
-                  <Badge 
-                    variant={sessionMode === "real" ? "destructive" : "default"} 
-                    className="text-xs mt-1"
+                  <Badge
+                    variant={sessionMode === "real" ? "destructive" : "default"}
+                    className="text-xs mt-1 cursor-pointer hover:opacity-80 select-none"
+                    onClick={onToggleMode}
+                    title="Cliquer pour changer de mode"
                   >
                     {sessionMode === "real" ? "RÉEL" : "EXERCICE"}
                   </Badge>

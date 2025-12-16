@@ -13,7 +13,7 @@ interface PhaseManagementProps {
 export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   const { phaseId } = useParams<{ phaseId: string }>();
   const { state, updateState } = useCrisisState();
-  
+
   const phaseIndex = phaseId ? parseInt(phaseId) - 1 : 0;
   const phase = state.phases[phaseIndex];
 
@@ -29,7 +29,7 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
 
 
   const getPhaseNumber = (phaseId: string) => {
-    switch(phaseId) {
+    switch (phaseId) {
       case 'P1': return 1;
       case 'P2': return 2;
       case 'P3': return 3;
@@ -39,23 +39,23 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
   };
 
   const getPhaseProgress = (phaseData: any) => {
-    const strategicItems = phaseData.strategic || [];
-    const operationalItems = phaseData.operational || [];
+    const strategicItems = phaseData.checklist?.strategic || [];
+    const operationalItems = phaseData.checklist?.operational || [];
     const totalItems = strategicItems.length + operationalItems.length;
-    const completedItems = strategicItems.filter((item: any) => item.checked).length + 
-                          operationalItems.filter((item: any) => item.checked).length;
+    const completedItems = strategicItems.filter((item: any) => item.checked).length +
+      operationalItems.filter((item: any) => item.checked).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
 
   const getStrategicProgress = (phaseData: any) => {
-    const strategicItems = phaseData.strategic || [];
+    const strategicItems = phaseData.checklist?.strategic || [];
     const totalItems = strategicItems.length;
     const completedItems = strategicItems.filter((item: any) => item.checked).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   };
 
   const getOperationalProgress = (phaseData: any) => {
-    const operationalItems = phaseData.operational || [];
+    const operationalItems = phaseData.checklist?.operational || [];
     const totalItems = operationalItems.length;
     const completedItems = operationalItems.filter((item: any) => item.checked).length;
     return totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
@@ -73,8 +73,8 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
           <div className="text-right">
             <div className="text-4xl font-bold">{Math.round(getPhaseProgress(phase))}%</div>
             <div className="text-sm text-blue-200">
-              {(phase.strategic || []).filter((item: any) => item.checked).length + 
-               (phase.operational || []).filter((item: any) => item.checked).length} / {(phase.strategic || []).length + (phase.operational || []).length} tâches
+              {(phase.checklist?.strategic || []).filter((item: any) => item.checked).length +
+                (phase.checklist?.operational || []).filter((item: any) => item.checked).length} / {(phase.checklist?.strategic || []).length + (phase.checklist?.operational || []).length} tâches
             </div>
           </div>
         </div>
@@ -107,12 +107,12 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {(phase.strategic || []).filter((item: any) => item.checked).length} / {(phase.strategic || []).length} terminées
+              {(phase.checklist?.strategic || []).filter((item: any) => item.checked).length} / {(phase.checklist?.strategic || []).length} terminées
             </p>
           </div>
-          
+
           <div className="divide-y divide-gray-200">
-            {(phase.strategic || []).map((item: any) => (
+            {(phase.checklist?.strategic || []).map((item: any) => (
               <div key={item.id} className="p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
@@ -123,14 +123,17 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                         ...prev,
                         phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                           ...p,
-                          strategic: p.strategic.map(si => si.id === item.id ? { ...si, checked: !!checked } : si)
+                          checklist: {
+                            ...p.checklist,
+                            strategic: p.checklist.strategic.map(si => si.id === item.id ? { ...si, checked: !!checked } : si)
+                          }
                         } : p)
                       }))
                     }
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <label 
+                    <label
                       htmlFor={`strategic-${item.id}`}
                       className="block font-medium text-gray-900 cursor-pointer"
                     >
@@ -142,7 +145,7 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                     <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
@@ -155,7 +158,10 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                           ...prev,
                           phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                             ...p,
-                            strategic: p.strategic.map(si => si.id === item.id ? { ...si, assignee: event.target.value } : si)
+                            checklist: {
+                              ...p.checklist,
+                              strategic: p.checklist.strategic.map(si => si.id === item.id ? { ...si, assignee: event.target.value } : si)
+                            }
                           } : p)
                         }))
                       }
@@ -172,7 +178,10 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                           ...prev,
                           phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                             ...p,
-                            strategic: p.strategic.map(si => si.id === item.id ? { ...si, dueAt: event.target.value } : si)
+                            checklist: {
+                              ...p.checklist,
+                              strategic: p.checklist.strategic.map(si => si.id === item.id ? { ...si, dueAt: event.target.value } : si)
+                            }
                           } : p)
                         }))
                       }
@@ -197,30 +206,33 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
               </div>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              {(phase.operational || []).filter((item: any) => item.checked).length} / {(phase.operational || []).length} terminées
+              {(phase.checklist?.operational || []).filter((item: any) => item.checked).length} / {(phase.checklist?.operational || []).length} terminées
             </p>
           </div>
-          
+
           <div className="divide-y divide-gray-200">
-            {(phase.operational || []).map((item: any) => (
+            {(phase.checklist?.operational || []).map((item: any) => (
               <div key={item.id} className="p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
                     id={`operational-${item.id}`}
                     checked={item.checked}
-                    onCheckedChange={(checked) => 
+                    onCheckedChange={(checked) =>
                       updateState(prev => ({
                         ...prev,
                         phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                           ...p,
-                          operational: p.operational.map(oi => oi.id === item.id ? { ...oi, checked: !!checked } : oi)
+                          checklist: {
+                            ...p.checklist,
+                            operational: p.checklist.operational.map(oi => oi.id === item.id ? { ...oi, checked: !!checked } : oi)
+                          }
                         } : p)
                       }))
                     }
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <label 
+                    <label
                       htmlFor={`operational-${item.id}`}
                       className="block font-medium text-gray-900 cursor-pointer"
                     >
@@ -232,7 +244,7 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                     <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 ml-6">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
@@ -245,7 +257,10 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                           ...prev,
                           phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                             ...p,
-                            operational: p.operational.map(oi => oi.id === item.id ? { ...oi, assignee: event.target.value } : oi)
+                            checklist: {
+                              ...p.checklist,
+                              operational: p.checklist.operational.map(oi => oi.id === item.id ? { ...oi, assignee: event.target.value } : oi)
+                            }
                           } : p)
                         }))
                       }
@@ -262,7 +277,10 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                           ...prev,
                           phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
                             ...p,
-                            operational: p.operational.map(oi => oi.id === item.id ? { ...oi, dueAt: event.target.value } : oi)
+                            checklist: {
+                              ...p.checklist,
+                              operational: p.checklist.operational.map(oi => oi.id === item.id ? { ...oi, dueAt: event.target.value } : oi)
+                            }
                           } : p)
                         }))
                       }

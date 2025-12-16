@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Clock, Info, CheckCircle, AlertCircle } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
-import type { AppState } from "@/lib/stateStore";
+import { type AppState, generateSessionId } from "@/lib/stateStore";
 import { toast } from "sonner";
 
 /** -------- Types -------- */
@@ -104,7 +104,7 @@ export function DecisionsPage() {
     }
 
     const newDecision: DecisionRecord = {
-      id: crypto.randomUUID(),
+      id: generateSessionId(),
       title: draft.subject.trim(),
       decidedAt: new Date().toISOString(),
       rationale: draft.description.trim(),

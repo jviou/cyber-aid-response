@@ -1,33 +1,23 @@
-# 1) Build front Vite
-FROM node:20-alpine AS builder
-
+# Stage 1: Build the frontend
+FROM node:18-alpine AS builder
 WORKDIR /app
-
-ARG VITE_CRISIS_API_URL
-ENV VITE_CRISIS_API_URL=$VITE_CRISIS_API_URL
-
 COPY package*.json ./
-RUN npm ci
-
+# Install ALL dependencies (including devDependencies for build)
+RUN npm install
 COPY . .
+# Build the React app to /app/dist
 RUN npm run build
 
-# 2) Image finale minimaliste
-FROM node:20-alpine
-
+# Stage 2: Production Server
+FROM node:18-alpine
 WORKDIR /app
-ENV NODE_ENV=production
-
-ARG VITE_CRISIS_API_URL
-ENV VITE_CRISIS_API_URL=$VITE_CRISIS_API_URL
-
-# seules les deps "prod"
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev
-
-# on copie le build dans ./public pour le serveur Node
-COPY --from=builder /app/dist ./public
-COPY server.js ./server.js
+COPY package*.json ./
+# Install only production dependencies (express, socket.io)
+RUN npm install --only=production
+# Copy built static files
+COPY --from=builder /app/dist ./dist
+# Copy the server script
+COPY server.js .
 
 EXPOSE 8080
 CMD ["node", "server.js"]

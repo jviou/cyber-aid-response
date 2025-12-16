@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { toast } from "sonner";
+import { generateSessionId } from "@/lib/stateStore";
 
 export function Dashboard() {
   const { state, updateState, sessionId } = useCrisisState();
@@ -31,25 +32,25 @@ export function Dashboard() {
   // Calculate KPIs
   const totalRidaItems = state.decisions.length; // RIDA items are stored in decisions
   const totalCommunications = state.communications.length;
-  
+
   const phasesProgress = useMemo(() => {
     if (!state.phases || state.phases.length === 0) return 0;
-    
+
     const totalItems = state.phases.reduce((acc, phase) => {
-      const strategicItems = phase.strategic?.length || 0;
-      const operationalItems = phase.operational?.length || 0;
+      const strategicItems = phase.checklist?.strategic?.length || 0;
+      const operationalItems = phase.checklist?.operational?.length || 0;
       return acc + strategicItems + operationalItems;
     }, 0);
-    
+
     const completedItems = state.phases.reduce((acc, phase) => {
-      const strategicCompleted = phase.strategic?.filter(item => item.checked).length || 0;
-      const operationalCompleted = phase.operational?.filter(item => item.checked).length || 0;
+      const strategicCompleted = phase.checklist?.strategic?.filter(item => item.checked).length || 0;
+      const operationalCompleted = phase.checklist?.operational?.filter(item => item.checked).length || 0;
       return acc + strategicCompleted + operationalCompleted;
     }, 0);
-    
+
     return totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
   }, [state.phases]);
-  
+
   // Recent events including RIDA items
   const recentDecisions = useMemo(
     () =>
@@ -58,28 +59,28 @@ export function Dashboard() {
         .slice(0, 5),
     [state.decisions]
   );
-  
+
   const handleAddContact = () => {
     if (!newContact.name.trim()) {
       toast.error("Le nom est requis");
       return;
     }
-    
+
     const contact = {
-      id: crypto.randomUUID(),
+      id: generateSessionId(),
       ...newContact
     };
-    
+
     updateState(prev => ({
       ...prev,
       contacts: [...prev.contacts, contact]
     }));
-    
+
     setNewContact({ name: "", role: "", email: "", phone: "" });
     setIsAddContactOpen(false);
     toast.success("Contact ajouté");
   };
-  
+
   const handleDeleteContact = (id: string) => {
     if (confirm("Supprimer ce contact ?")) {
       updateState(prev => ({
@@ -157,7 +158,7 @@ export function Dashboard() {
                       <Label>Nom *</Label>
                       <Input
                         value={newContact.name}
-                        onChange={(e) => setNewContact({...newContact, name: e.target.value})}
+                        onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                         placeholder="Nom complet"
                       />
                     </div>
@@ -165,7 +166,7 @@ export function Dashboard() {
                       <Label>Rôle</Label>
                       <Input
                         value={newContact.role}
-                        onChange={(e) => setNewContact({...newContact, role: e.target.value})}
+                        onChange={(e) => setNewContact({ ...newContact, role: e.target.value })}
                         placeholder="Fonction/Rôle"
                       />
                     </div>
@@ -174,7 +175,7 @@ export function Dashboard() {
                       <Input
                         type="email"
                         value={newContact.email}
-                        onChange={(e) => setNewContact({...newContact, email: e.target.value})}
+                        onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
                         placeholder="email@exemple.com"
                       />
                     </div>
@@ -182,7 +183,7 @@ export function Dashboard() {
                       <Label>Téléphone</Label>
                       <Input
                         value={newContact.phone}
-                        onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                        onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
                         placeholder="+33 6 12 34 56 78"
                       />
                     </div>
@@ -205,8 +206,8 @@ export function Dashboard() {
                       {contact.email && <p className="text-sm text-muted-foreground">{contact.email}</p>}
                       {contact.phone && <p className="text-sm text-muted-foreground">{contact.phone}</p>}
                     </div>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteContact(contact.id)}
                     >

@@ -1,30 +1,15 @@
-version: "3.8"
-
 services:
-  crisis-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    container_name: crisis-api
-    restart: unless-stopped
-    environment:
-      - PORT=4000
-      - CRISIS_STATE_DIR=/data
-    ports:
-      - "4000:4000"
-    volumes:
-      - crisis_state_data:/data
-
-  crisis-frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: crisis-frontend
-    restart: unless-stopped
-    depends_on:
-      - crisis-api
+  app:
+    build: .
+    container_name: crisis-app
+    restart: always
     ports:
       - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=8080
+      - CRISIS_STATE_DIR=/app/data
+      - CRISIS_STATE_FILE=session-v2.json
 
-volumes:
-  crisis_state_data:
+# No separate API service needed anymore!

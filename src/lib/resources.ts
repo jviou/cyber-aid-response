@@ -1,5 +1,7 @@
 // No Supabase - local only
 
+import { generateSessionId } from "./stateStore";
+
 export interface ResourceFile {
   id: string;
   session_id: string;
@@ -20,7 +22,7 @@ export async function uploadFile(file: File, sessionId: string): Promise<Resourc
   return new Promise((resolve, reject) => {
     reader.onload = () => {
       const resource: ResourceFile = {
-        id: crypto.randomUUID(),
+        id: generateSessionId(),
         session_id: sessionId,
         title: file.name,
         blob_key: reader.result as string,
@@ -28,12 +30,12 @@ export async function uploadFile(file: File, sessionId: string): Promise<Resourc
         added_at: new Date().toISOString(),
         mime_type: file.type
       };
-      
+
       // Save to localStorage
       const existing = JSON.parse(localStorage.getItem('resources') || '[]');
       existing.push(resource);
       localStorage.setItem('resources', JSON.stringify(existing));
-      
+
       resolve(resource);
     };
     reader.onerror = reject;

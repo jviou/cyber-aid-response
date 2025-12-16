@@ -34,7 +34,7 @@ const buildLegacySession = (state: AppState, sessionId: string): CrisisSession =
     subtitle: '',
     notes: '',
     checklist: {
-      strategic: phase.strategic.map(item => ({
+      strategic: (phase.checklist?.strategic || []).map(item => ({
         id: item.id,
         text: item.text,
         owner: item.assignee || undefined,
@@ -42,7 +42,7 @@ const buildLegacySession = (state: AppState, sessionId: string): CrisisSession =
         status: item.checked ? 'done' : 'todo',
         evidence: []
       })),
-      operational: phase.operational.map(item => ({
+      operational: (phase.checklist?.operational || []).map(item => ({
         id: item.id,
         text: item.text,
         owner: item.assignee || undefined,
@@ -58,6 +58,7 @@ const buildLegacySession = (state: AppState, sessionId: string): CrisisSession =
   decisions: state.decisions.map(decision => ({
     id: decision.id,
     question: decision.title,
+    title: decision.title,
     optionChosen: decision.rationale,
     rationale: decision.rationale,
     validator: decision.owner,
@@ -116,10 +117,20 @@ export function CrisisLayout() {
     });
   };
 
+  const handleToggleMode = () => {
+    updateState(prev => ({
+      ...prev,
+      meta: {
+        ...prev.meta,
+        mode: prev.meta.mode === 'real' ? 'exercise' : 'real'
+      }
+    }));
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-card">
-        <CrisisSidebar sessionMode={state.meta.mode} />
+        <CrisisSidebar sessionMode={state.meta.mode} onToggleMode={handleToggleMode} />
         <div className="flex-1 flex flex-col">
           <SessionHeader />
           <main className="flex-1 p-6 overflow-auto">

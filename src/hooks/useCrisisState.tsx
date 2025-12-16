@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { AppState, getOrCreateSessionId, loadState, getDefaultState, saveState, fetchRemoteSnapshot } from '@/lib/stateStore';
+import { AppState, getDefaultState, normalizeAppState } from '@/lib/stateStore';
 import { toast } from 'sonner';
+import { io, Socket } from 'socket.io-client';
 
 interface CrisisStateContextType {
   state: AppState;
@@ -8,6 +9,7 @@ interface CrisisStateContextType {
   isLoading: boolean;
   updateState: (updater: (state: AppState) => AppState) => void;
   refreshState: () => Promise<void>;
+  socket: Socket | null;
 }
 
 const CrisisStateContext = createContext<CrisisStateContextType | null>(null);
@@ -20,76 +22,73 @@ export function useCrisisState() {
   return context;
 }
 
+// Dynamically determine the socket URL
+function getSocketUrl() {
+  // Always use dynamic detection for local/offline mode
+  // ignoring any potential baked-in environment variables that might be wrong (e.g. https on http setup)
+
+  if (typeof window !== "undefined") {
+    // Monolithic deployment: Connect to the same origin (host + port)
+    return window.location.origin;
+  }
+
+  return "http://localhost:4000";
+}
+
 export function CrisisStateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(getDefaultState());
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>('shared-session'); // Single session
   const [isLoading, setIsLoading] = useState(true);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveFailureRef = useRef(false);
-  const lastSaveErrorToastRef = useRef(0);
+  const socketRef = useRef<Socket | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  // Load initial state
+  // Initialize Socket connection
   useEffect(() => {
-    const initializeState = async () => {
-      try {
-        const id = getOrCreateSessionId();
-        setSessionId(id);
-        const loadedState = await loadState(id, {
-          onRemoteLoadError: () => {
-            const now = Date.now();
-            if (now - lastLoadErrorToastRef.current > 30000) {
-              toast.error('API distante indisponible, chargement du cache local');
-              lastLoadErrorToastRef.current = now;
-            }
-          }
-        });
-        setState(loadedState);
-      } catch (error) {
-        console.error('Error initializing state:', error);
-        toast.error('Erreur lors du chargement de la session');
-      } finally {
+    // Only connect once
+    if (socketRef.current) return;
+
+    const socketUrl = getSocketUrl();
+    console.log("Connecting to WebSocket:", socketUrl);
+
+    const socket = io(socketUrl, {
+      reconnectionDelayMax: 5000,
+      timeout: 10000,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("Socket connected:", socket.id);
+      toast.success("Connecté au serveur temps réel");
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Socket connect error:", err);
+      // If we are stuck in loading state (first load) and fail to connect,
+      // we should eventually show the UI with default/empty state to avoid infinite spinner.
+      if (!hasLoadedRef.current) {
+        toast.error("Impossible de contacter le serveur. Mode hors ligne (données non sauvegardées).");
         setIsLoading(false);
+        hasLoadedRef.current = true;
       }
-    };
+    });
 
-    initializeState();
-  }, []);
+    socket.on("state-update", (newState: AppState) => {
+      console.log("Received state update from server");
+      // Validate/Normalize incoming state to prevent crashes
+      const safeState = normalizeAppState(newState);
+      setState(safeState);
+      setIsLoading(false);
+      hasLoadedRef.current = true;
+    });
 
-  useEffect(() => {
+    // Cleanup
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      socket.disconnect();
+      socketRef.current = null;
     };
   }, []);
 
-  // Debounced save function
-  const debouncedSave = useCallback((newState: AppState) => {
-    if (!sessionId) return;
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await saveState(sessionId, newState);
-        if (saveFailureRef.current) {
-          toast.success('Connexion à l\'API restaurée, synchronisation active');
-        }
-        saveFailureRef.current = false;
-      } catch (error) {
-        console.error('Error saving state:', error);
-        const now = Date.now();
-        if (!saveFailureRef.current || now - lastSaveErrorToastRef.current > 30000) {
-          toast.error('Sauvegarde distante indisponible, vos données restent stockées localement');
-          lastSaveErrorToastRef.current = now;
-        }
-        saveFailureRef.current = true;
-      }
-    }, 500);
-  }, [sessionId]);
-
+  // Sync function that emits updates
   const updateState = useCallback((updater: (state: AppState) => AppState) => {
     setState(prevState => {
       const newState = updater(prevState);
@@ -100,58 +99,36 @@ export function CrisisStateProvider({ children }: { children: React.ReactNode })
           updatedAt: new Date().toISOString()
         }
       };
-      debouncedSave(timestampedState);
+
+      // Emit to server
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("client-update", timestampedState);
+      } else {
+        toast.error("Déconnecté du serveur, modification locale uniquement (non sauvegardée)");
+      }
       return timestampedState;
     });
-  }, [debouncedSave]);
+  }, []);
 
   const refreshState = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const refreshedState = await loadState(sessionId, {
-        onRemoteLoadError: () => {
-          toast.error('Impossible de contacter l\'API, données locales affichées');
-        }
-      });
-      setState(refreshedState);
-    } catch (error) {
-      console.error('Error refreshing state:', error);
-      toast.error('Erreur lors du rafraîchissement');
-    } finally {
-      setIsLoading(false);
+    // With sockets, refresh is just asking for state again?
+    // Or manually fetching via REST if socket fails.
+    // For now, force a re-connect request if needed or just log
+    console.log("Manual refresh requested - expecting socket update");
+    if (socketRef.current && !socketRef.current.connected) {
+      socketRef.current.connect();
     }
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const interval = setInterval(async () => {
-      const remote = await fetchRemoteSnapshot(sessionId);
-      if (!remote) return;
-
-      setState(prevState => {
-        const prevHash = JSON.stringify(prevState);
-        const nextHash = JSON.stringify(remote);
-        if (prevHash === nextHash) {
-          return prevState;
-        }
-
-        localStorage.setItem(`crisis-state-${sessionId}`, JSON.stringify(remote));
-        return remote;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [sessionId]);
+  }, []);
 
   return (
-    <CrisisStateContext.Provider 
+    <CrisisStateContext.Provider
       value={{
         state,
         sessionId,
         isLoading,
         updateState,
-        refreshState
+        refreshState,
+        socket: socketRef.current
       }}
     >
       {children}
