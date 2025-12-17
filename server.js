@@ -139,6 +139,11 @@ app.get("/api/export", (req, res) => {
   res.json(state);
 });
 
+// Health Check for Docker
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Socket.io Setup
 const io = new Server(server, {
   cors: {

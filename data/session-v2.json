@@ -3,9 +3,9 @@
     "title": "Nouvelle Session de Crise",
     "mode": "exercise",
     "severity": "Modérée",
-    "version": 9,
-    "createdAt": "2025-12-16T15:35:50.002Z",
-    "updatedAt": "2025-12-16T16:01:50.957Z"
+    "version": 1,
+    "createdAt": "2025-12-17T09:41:45.372Z",
+    "updatedAt": "2025-12-17T09:41:45.372Z"
   },
   "contacts": [],
   "journal": [],
@@ -16,19 +16,19 @@
     {
       "id": "P1",
       "title": "PHASE 1",
+      "subtitle": "Alerter et endiguer - Mobiliser",
+      "notes": "",
       "checklist": {
         "strategic": [
           {
             "id": "p1s1",
             "text": "Mobiliser la cellule de crise",
-            "status": "todo",
-            "checked": false
+            "status": "todo"
           },
           {
             "id": "p1s2",
             "text": "Prise en compte de la fiche réflexe et 1ère action effectuée",
-            "status": "todo",
-            "checked": false
+            "status": "todo"
           },
           {
             "id": "p1s3",
@@ -64,6 +64,8 @@
     {
       "id": "P2",
       "title": "PHASE 2",
+      "subtitle": "Comprendre l'attaque - Maintenir la confiance",
+      "notes": "",
       "checklist": {
         "strategic": [
           {
@@ -105,6 +107,8 @@
     {
       "id": "P3",
       "title": "PHASE 3",
+      "subtitle": "Durcir et surveiller - Relancer les activités",
+      "notes": "",
       "checklist": {
         "strategic": [
           {
@@ -151,6 +155,8 @@
     {
       "id": "P4",
       "title": "PHASE 4",
+      "subtitle": "Capitaliser - Tirer les leçons de la crise",
+      "notes": "",
       "checklist": {
         "strategic": [
           {
