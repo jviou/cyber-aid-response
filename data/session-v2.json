@@ -3,9 +3,9 @@
     "title": "Nouvelle Session de Crise",
     "mode": "exercise",
     "severity": "Modérée",
-    "version": 3,
+    "version": 9,
     "createdAt": "2025-12-16T15:35:50.002Z",
-    "updatedAt": "2025-12-16T15:45:07.554Z"
+    "updatedAt": "2025-12-16T16:01:50.957Z"
   },
   "contacts": [],
   "journal": [],
@@ -21,12 +21,14 @@
           {
             "id": "p1s1",
             "text": "Mobiliser la cellule de crise",
-            "status": "todo"
+            "status": "todo",
+            "checked": false
           },
           {
             "id": "p1s2",
             "text": "Prise en compte de la fiche réflexe et 1ère action effectuée",
-            "status": "todo"
+            "status": "todo",
+            "checked": false
           },
           {
             "id": "p1s3",

@@ -11,5 +11,3 @@ services:
       - PORT=8080
       - CRISIS_STATE_DIR=/app/data
       - CRISIS_STATE_FILE=session-v2.json
-
-# No separate API service needed anymore!
