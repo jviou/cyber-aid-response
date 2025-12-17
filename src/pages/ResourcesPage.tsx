@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Plus, Trash2, Upload, ExternalLink, FileText, Link as LinkIcon, Download } from "lucide-react";
-import { uploadFile, listFiles, deleteFile, getFileUrl, ResourceFile } from "@/lib/resources";
+import { uploadFile, listFiles, deleteFile, getFileUrl, saveLink, ResourceFile } from "@/lib/resources";
 import { toast } from "sonner";
 
 interface ResourcesPageProps {
@@ -52,13 +52,20 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
       // Upload files
       for (const file of newResource.files) {
         setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-        
+
         const uploadedFile = await uploadFile(file, sessionId);
         setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-        
+
         // Add to local state immediately (optimistic UI)
         setResources(prev => [uploadedFile, ...prev]);
         toast.success(`${file.name} ajouté avec succès`);
+      }
+
+      // Add Link
+      if (newResource.url) {
+        const linkResource = await saveLink(newResource.url, sessionId);
+        setResources(prev => [linkResource, ...prev]);
+        toast.success("Lien ajouté avec succès");
       }
 
       // Clear upload progress
@@ -71,10 +78,10 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
         files: []
       });
       setIsAddOpen(false);
-      
+
     } catch (error) {
       console.error('Error uploading files:', error);
-      toast.error("Erreur lors de l'upload");
+      toast.error("Erreur lors de l'ajout");
       setUploadProgress({});
     }
   };
@@ -110,6 +117,12 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
   const handleDownload = async (resource: ResourceFile) => {
     try {
       const url = await getFileUrl(resource.blob_key || '');
+
+      if (resource.mime_type === 'application/x-url') {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       if (isPdf(resource)) {
         window.open(url, "_blank", "noopener,noreferrer");
         return;
@@ -137,7 +150,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: '2-digit',
-      month: '2-digit', 
+      month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -175,7 +188,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                 Téléchargez des documents ou ajoutez des liens
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label>Fichiers</Label>
@@ -199,7 +212,7 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                
+
                 {/* Selected files */}
                 {newResource.files.length > 0 && (
                   <div className="space-y-2 mt-3">
@@ -241,18 +254,18 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                   </div>
                 )}
               </div>
-              
+
               <div className="grid gap-2">
                 <Label>Ou ajouter un lien</Label>
                 <Input
                   value={newResource.url}
-                  onChange={(e) => setNewResource({...newResource, url: e.target.value})}
+                  onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
                   placeholder="https://exemple.com/document.pdf"
                 />
               </div>
-              
-              <Button 
-                onClick={handleAddFiles} 
+
+              <Button
+                onClick={handleAddFiles}
                 className="w-full"
                 disabled={newResource.files.length === 0 && !newResource.url}
               >
@@ -310,10 +323,10 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                     <FileText className="w-8 h-8 text-primary flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium truncate">{resource.title}</h4>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                      <span>{formatFileSize(resource.size_bytes)}</span>
-                      <span>{formatDate(resource.added_at)}</span>
-                    </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span>{formatFileSize(resource.size_bytes)}</span>
+                        <span>{formatDate(resource.added_at)}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -322,8 +335,17 @@ export function ResourcesPage({ sessionId }: ResourcesPageProps) {
                       size="sm"
                       onClick={() => handleDownload(resource)}
                     >
-                      <Download className="w-4 h-4 mr-1" />
-                      Télécharger
+                      {resource.mime_type === 'application/x-url' ? (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-1" />
+                          Ouvrir
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 mr-1" />
+                          Télécharger
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="ghost"

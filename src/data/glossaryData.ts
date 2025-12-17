@@ -99,7 +99,7 @@ export const glossaryData: GlossaryCategory[] = [
       {
         id: "2.6",
         term: "Le poste de travail",
-        definition: "Est le terminal (ordinateur, tablette, etc.) d'accès au système d'information de l'organisation. Il permet à un utilisateur d'accéder aux ressources d'une organisation (applications, périphériques, réseaux) pour accomplir les tâches qui lui incombe."
+        definition: "Est le terminal (ordinateur, tablette, etc.) d'accès au système d'information de l'organisation. Il permet à un utilisateur d'accéder aux ressources d'une organisation (applications, périphériques, réseaux) pour accomplir les tâches qui lui incombent."
       },
       {
         id: "2.7",
@@ -165,7 +165,7 @@ export const glossaryData: GlossaryCategory[] = [
       {
         id: "3.1",
         term: "La menace cybersécurité",
-        definition: "Est la cause potentielle d'un incident, qui pourrait entraîner des dommages sur un bien si cette menace se concrétisait. Les menaces de cybersécurité peuvent prendre plusieurs formes telle que le maliciel, le rançongiciel, l'ingénierie sociale ou le hameçonnage."
+        definition: "Est la cause potentielle d'un incident, qui pourrait entraîner des dommages sur un bien si cette menace se concrétisait. Les menaces de cybersécurité peuvent prendre plusieurs formes telles que le maliciel, le rançongiciel, l'ingénierie sociale ou le hameçonnage."
       },
       {
         id: "3.2",
@@ -175,7 +175,7 @@ export const glossaryData: GlossaryCategory[] = [
       {
         id: "3.3",
         term: "Le maliciel (ou malware)",
-        definition: "Est un type de logiciel malveillant dans lequel n'importe quel fichier ou programme peut être utilisé pour porter préjudice à l'utilisateur d'un ordinateur, que ce soit par un vers, un virus, un cheval de Troie ou un logiciel espion."
+        definition: "Est un type de logiciel malveillant dans lequel n'importe quel fichier ou programme peut être utilisé pour porter préjudice à l'utilisateur d'un ordinateur, que ce soit par un ver, un virus, un cheval de Troie ou un logiciel espion."
       },
       {
         id: "3.4",
@@ -185,7 +185,7 @@ export const glossaryData: GlossaryCategory[] = [
       {
         id: "3.5",
         term: "Le hameçonnage (ou phishing)",
-        definition: "Est un technique de fraude sur Internet qui consiste à envoyer un message destiné à amener une personne à se connecter sur un site dans le but d'obtenir des renseignements confidentiels (mot de passe, informations bancaires...) afin d'usurper l'identité de la victime."
+        definition: "Est une technique de fraude sur Internet qui consiste à envoyer un message destiné à amener une personne à se connecter sur un site dans le but d'obtenir des renseignements confidentiels (mot de passe, informations bancaires...) afin d'usurper l'identité de la victime."
       }
     ]
   },

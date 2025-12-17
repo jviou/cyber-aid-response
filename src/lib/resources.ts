@@ -54,6 +54,26 @@ export async function deleteFile(id: string): Promise<void> {
   localStorage.setItem('resources', JSON.stringify(filtered));
 }
 
+// ... (existing code)
+
+export async function saveLink(url: string, sessionId: string): Promise<ResourceFile> {
+  const resource: ResourceFile = {
+    id: generateSessionId(),
+    session_id: sessionId,
+    title: url,
+    blob_key: url,
+    size_bytes: null,
+    added_at: new Date().toISOString(),
+    mime_type: 'application/x-url'
+  };
+
+  const existing = JSON.parse(localStorage.getItem('resources') || '[]');
+  existing.push(resource);
+  localStorage.setItem('resources', JSON.stringify(existing));
+
+  return resource;
+}
+
 export async function getFileUrl(blobKey: string): Promise<string> {
   // Return the base64 data URL directly
   return blobKey;

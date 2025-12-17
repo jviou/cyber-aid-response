@@ -1,10 +1,13 @@
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Settings, Clock } from "lucide-react";
+import { AlertTriangle, Settings, Clock, Plus, Trash2 } from "lucide-react";
 import { useCrisisState } from "@/hooks/useCrisisState";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { PHASE_CONTENT } from "@/data/phaseContent";
+import { generateSessionId } from "@/lib/stateStore";
 
 interface PhaseManagementProps {
   sessionId: string;
@@ -65,12 +68,31 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
     <div className="bg-blue-600 min-h-screen">
       {/* Phase Header */}
       <div className="text-white p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold">PHASE {getPhaseNumber(phase.id)}</h1>
-            <p className="text-blue-200">{phase.title}</p>
+        <div className="flex items-start justify-between gap-8">
+          <div className="flex-1">
+            <h1 className="text-4xl font-bold mb-2">PHASE {getPhaseNumber(phase.id)}</h1>
+            <h2 className="text-xl font-semibold text-blue-100 mb-4">
+              {PHASE_CONTENT[phase.id]?.title || phase.title}
+            </h2>
+
+            {PHASE_CONTENT[phase.id] && (
+              <div className="text-blue-50 space-y-4 text-sm leading-relaxed">
+                <p>{PHASE_CONTENT[phase.id].description}</p>
+                {PHASE_CONTENT[phase.id].objectives.length > 0 && (
+                  <div>
+                    <p className="font-semibold mb-1">Objectifs principaux :</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {PHASE_CONTENT[phase.id].objectives.map((obj, i) => (
+                        <li key={i}>{obj}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="text-right">
+
+          <div className="text-right shrink-0">
             <div className="text-4xl font-bold">{Math.round(getPhaseProgress(phase))}%</div>
             <div className="text-sm text-blue-200">
               {(phase.checklist?.strategic || []).filter((item: any) => item.checked).length +
@@ -113,7 +135,7 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
 
           <div className="divide-y divide-gray-200">
             {(phase.checklist?.strategic || []).map((item: any) => (
-              <div key={item.id} className="p-4">
+              <div key={item.id} className="p-4 group">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
                     id={`strategic-${item.id}`}
@@ -130,23 +152,54 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                         } : p)
                       }))
                     }
-                    className="mt-1"
+                    className="mt-2"
                   />
                   <div className="flex-1">
-                    <label
-                      htmlFor={`strategic-${item.id}`}
-                      className="block font-medium text-gray-900 cursor-pointer"
-                    >
-                      {item.text}
-                    </label>
+                    <Input
+                      value={item.text}
+                      onChange={(e) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            checklist: {
+                              ...p.checklist,
+                              strategic: p.checklist.strategic.map(si => si.id === item.id ? { ...si, text: e.target.value } : si)
+                            }
+                          } : p)
+                        }))
+                      }
+                      className="border-transparent hover:border-input focus:border-input px-2 h-auto py-1 font-medium text-gray-900"
+                    />
                   </div>
-                  <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'}`}>
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'} shrink-0`}>
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium hidden sm:inline">{item.checked ? 'Terminé' : 'À faire'}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-400 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            checklist: {
+                              ...p.checklist,
+                              strategic: p.checklist.strategic.filter(si => si.id !== item.id)
+                            }
+                          } : p)
+                        }))
+                      }
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 ml-6">
+                <div className="grid grid-cols-2 gap-4 ml-8">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
                     <Input
@@ -190,6 +243,36 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                 </div>
               </div>
             ))}
+            <div className="p-4 bg-gray-50">
+              <Button
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() =>
+                  updateState(prev => ({
+                    ...prev,
+                    phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                      ...p,
+                      checklist: {
+                        ...p.checklist,
+                        strategic: [
+                          ...p.checklist.strategic,
+                          {
+                            id: generateSessionId(),
+                            text: "Nouvelle tâche stratégique",
+                            checked: false,
+                            assignee: "",
+                            dueAt: ""
+                          }
+                        ]
+                      }
+                    } : p)
+                  }))
+                }
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter une tâche stratégique
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -212,7 +295,7 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
 
           <div className="divide-y divide-gray-200">
             {(phase.checklist?.operational || []).map((item: any) => (
-              <div key={item.id} className="p-4">
+              <div key={item.id} className="p-4 group">
                 <div className="flex items-start gap-3 mb-3">
                   <Checkbox
                     id={`operational-${item.id}`}
@@ -229,23 +312,54 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                         } : p)
                       }))
                     }
-                    className="mt-1"
+                    className="mt-2"
                   />
                   <div className="flex-1">
-                    <label
-                      htmlFor={`operational-${item.id}`}
-                      className="block font-medium text-gray-900 cursor-pointer"
-                    >
-                      {item.text}
-                    </label>
+                    <Input
+                      value={item.text}
+                      onChange={(e) =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            checklist: {
+                              ...p.checklist,
+                              operational: p.checklist.operational.map(oi => oi.id === item.id ? { ...oi, text: e.target.value } : oi)
+                            }
+                          } : p)
+                        }))
+                      }
+                      className="border-transparent hover:border-input focus:border-input px-2 h-auto py-1 font-medium text-gray-900"
+                    />
                   </div>
-                  <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'}`}>
-                    <Clock className="w-4 h-4" />
-                    <span className="text-sm font-medium">{item.checked ? 'Terminé' : 'À faire'}</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-1 ${item.checked ? 'text-green-600' : 'text-blue-600'} shrink-0`}>
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium hidden sm:inline">{item.checked ? 'Terminé' : 'À faire'}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-gray-400 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() =>
+                        updateState(prev => ({
+                          ...prev,
+                          phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                            ...p,
+                            checklist: {
+                              ...p.checklist,
+                              operational: p.checklist.operational.filter(oi => oi.id !== item.id)
+                            }
+                          } : p)
+                        }))
+                      }
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 ml-6">
+                <div className="grid grid-cols-2 gap-4 ml-8">
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">Responsable</label>
                     <Input
@@ -289,6 +403,36 @@ export function PhaseManagement({ sessionId }: PhaseManagementProps) {
                 </div>
               </div>
             ))}
+            <div className="p-4 bg-gray-50">
+              <Button
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() =>
+                  updateState(prev => ({
+                    ...prev,
+                    phases: prev.phases.map((p, idx) => idx === phaseIndex ? {
+                      ...p,
+                      checklist: {
+                        ...p.checklist,
+                        operational: [
+                          ...p.checklist.operational,
+                          {
+                            id: generateSessionId(),
+                            text: "Nouvelle tâche opérationnelle",
+                            checked: false,
+                            assignee: "",
+                            dueAt: ""
+                          }
+                        ]
+                      }
+                    } : p)
+                  }))
+                }
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter une tâche opérationnelle
+              </Button>
+            </div>
           </div>
         </div>
       </div>
