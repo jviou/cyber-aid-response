@@ -1,65 +1,123 @@
+![CI](https://github.com/jviou/cyber-aid-response/actions/workflows/ci.yml/badge.svg?branch=master)
+
 # Crisis Manager
 
-Application de gestion de crise cybersécurité "Full Deployable".
-Architecture monolithique autonome : Frontend (React) + Backend (Node.js) + Persistance JSON.
+Application de gestion de crise cybersécurité **full déployable**, pensée pour des environnements sensibles.
+
+Architecture **monolithique autonome** :
+
+* Frontend (React)
+* Backend (Node.js)
+* Persistance locale (JSON)
+
+Aucune dépendance cloud ou service externe au runtime.
+
+---
 
 ## 📋 Pré-requis
 
-- **Docker** et **Docker Compose** installés sur la machine.
-  - [Install Docker Desktop (Windows/Mac)](https://www.docker.com/products/docker-desktop/)
-  - [Install Docker Engine (Linux)](https://docs.docker.com/engine/install/)
+* **Docker** et **Docker Compose** installés sur la machine
+
+  * Windows / macOS : Docker Desktop
+  * Linux : Docker Engine + Docker Compose plugin
+
+---
 
 ## 🚀 Installation & Démarrage
 
-1. **Cloner le projet** :
+1. **Cloner le projet**
+
    ```bash
-   git clone <URL_DU_REPO>
+   git clone https://github.com/jviou/cyber-aid-response.git
    cd cyber-aid-response
    ```
 
-2. **Démarrer l'application** :
-   ```bash
-   docker-compose up -d
-   ```
-   *L'image sera construite automatiquement au premier lancement.*
+2. **Démarrer l'application**
 
-3. **Accéder à l'application** :
-   Ouvrez [http://localhost:8080](http://localhost:8080) dans votre navigateur.
+   ```bash
+   docker compose up -d --build
+   ```
+
+   > L'image Docker est construite localement lors du premier lancement.
+
+3. **Accéder à l'application**
+
+   * [http://localhost:8080](http://localhost:8080)
+
+---
 
 ## 💾 Données & Persistance
 
-Toutes les données sont stockées localement dans le dossier `./data` à la racine du projet.
-Ce dossier est monté dans le conteneur (`/app/data`).
+Toutes les données sont stockées localement dans le dossier `./data` monté dans le conteneur.
 
-- **Emplacement** : `cyber-aid-response/data/`
-- **Contenu** : `session-v2.json` (État complet de la session).
-- **Sauvegarde** : Copiez simplement le dossier `data` ailleurs.
-- **Restauration** : Remplacez le dossier `data` par une sauvegarde (conteneur arrêté).
+* **Chemin hôte** : `cyber-aid-response/data/`
+* **Chemin conteneur** : `/data`
+* **Fichier principal** : `session-v2.json`
+
+### Sauvegarde
+
+* Arrêter le conteneur
+* Copier le dossier `data`
+
+### Restauration
+
+* Remplacer le dossier `data` par une sauvegarde existante
+* Relancer le conteneur
+
+---
 
 ## 🔄 Mise à jour
 
-Pour récupérer la dernière version du code et redéployer :
+Pour mettre à jour l'application :
 
 ```bash
 git pull
-docker-compose up -d --build
-```
-
-## 🛠 Configuration (Optionnel)
-
-Vous pouvez configurer l'application via un fichier `.env` (voir `.env.example`) :
-
-- `PORT` : Port d'écoute interne (Défaut 8080). Changez aussi `ports` dans `docker-compose.yml` si nécessaire.
-- `NODE_ENV` : `production` par défaut.
-
-## 🏗 Développement
-
-Pour les développeurs souhaitant modifier le code :
-
-```bash
-npm install
-npm run dev
+docker compose up -d --build
 ```
 
 ---
-*Généré automatiquement par CyberAid Deployment Helper*
+
+## 🛠 Configuration (optionnelle)
+
+L'application peut être configurée via un fichier `.env` (voir `.env.example`).
+
+Variables principales :
+
+* `PORT` : Port d'écoute interne (défaut : 8080)
+* `NODE_ENV` : `production` par défaut
+
+> Si le port est modifié, adapter également la section `ports` du `docker-compose.yml`.
+
+---
+
+## 📴 Mode Offline / Air-Gap
+
+L'application est **compatible avec un déploiement hors-ligne (air-gap)**.
+
+### Conditions
+
+* Docker et Docker Compose doivent être installés en amont
+
+### Procédure
+
+1. Cloner ou télécharger le dépôt sur une machine connectée
+2. Copier le dossier complet sur la machine cible (clé USB, réseau interne)
+3. Lancer l'application :
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+Aucune connexion Internet n'est requise au runtime.
+
+---
+
+## 📦 Versioning
+
+Les versions stables sont taguées sur GitHub.
+
+* Version actuelle : **v1.0.0**
+
+---
+
+*Projet conçu pour des contextes de gestion de crise, exercices cyber et environnements sensibles.*
