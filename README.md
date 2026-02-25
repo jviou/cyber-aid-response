@@ -5,10 +5,9 @@
 Application de gestion de crise cybersécurité **full déployable**, pensée pour des environnements sensibles.
 
 Architecture **monolithique autonome** :
-
-* Frontend (React)
-* Backend (Node.js)
-* Persistance locale (JSON)
+- Frontend (React)
+- Backend (Node.js)
+- Persistance locale (JSON)
 
 Aucune dépendance cloud ou service externe au runtime.
 
@@ -16,29 +15,29 @@ Aucune dépendance cloud ou service externe au runtime.
 
 ## 📋 Pré-requis
 
-* **Docker** et **Docker Compose** installés sur la machine
+- **Docker** et **Docker Compose** installés sur la machine
+  - Windows / macOS : Docker Desktop
+  - Linux : Docker Engine + Docker Compose plugin
 
-  * Windows / macOS : Docker Desktop
-  * Linux : Docker Engine + Docker Compose plugin
+> Astuce : la commande `docker compose version` permet de vérifier que Compose est bien disponible.
 
 ---
 
 ## 🚀 Installation & Démarrage
 
-1. **Cloner le projet**
+Vous avez 2 méthodes : **(A) ZIP (recommandée si vous n’utilisez pas Git)** ou **(B) Git (pour équipes IT)**.
 
-   ```bash
-   git clone https://github.com/jviou/cyber-aid-response.git
-   cd cyber-aid-response
-   ```
+### A) Méthode simple : Télécharger le ZIP (sans Git)
 
-2. **Démarrer l'application**
-
+1. **Télécharger le projet**
+   - Sur GitHub : bouton **Code** → **Download ZIP**
+2. **Extraire** le ZIP (ex: `cyber-aid-response-master.zip`)
+3. Ouvrir un terminal **dans le dossier extrait**
+   - Windows : clic droit dans le dossier → “Ouvrir dans le Terminal” / PowerShell
+   - macOS/Linux : ouvrir un Terminal et `cd` dans le dossier
+4. **Démarrer l’application**
    ```bash
    docker compose up -d --build
-   ```
-
-   > L'image Docker est construite localement lors du premier lancement.
 
 3. **Accéder à l'application**
 
