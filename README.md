@@ -27,7 +27,7 @@ Pour un déploiement simple (sans Git) et des versions propres, utilisez les **R
 ## 📋 Pré-requis
 
 - **Docker** et **Docker Compose** installés sur la machine
-  - Windows / macOS : Docker Desktop
+  - Windows / macOS : Docker Desktop (https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe?utm_source=docker&utm_medium=webreferral&utm_campaign=dd-smartbutton&utm_location=module)
   - Linux : Docker Engine + Docker Compose plugin
 
 > Astuce : `docker compose version` permet de vérifier que Compose est disponible.
